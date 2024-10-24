@@ -12,3 +12,41 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model User {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  NIK       String   @unique
+  namaLengkap String
+  tanggalLahir DateTime
+  noTelp     String
+  email      String? @unique
+  password   String
+  noKartuJKN String  @unique
+  jenisKelamin Gender
+  alamat     String
+  faskesTingkat1 String
+  kelasPerawatan KelasBPJS @default(KELAS_3)
+  recordKesehatan RecordKesehatan[]
+}
+
+model RecordKesehatan {
+  id String @id @default(cuid())
+  createdAt DateTime @default(now())
+  userId String // FK
+  user User @relation(fields: [userId], references: [id])
+  // ini nanti gue tambahin but for now user dulu
+}
+
+
+enum Gender {
+  LAKI_LAKI
+  PEREMPUAN
+}
+
+enum KelasBPJS {
+  KELAS_1
+  KELAS_2
+  KELAS_3
+}
+
