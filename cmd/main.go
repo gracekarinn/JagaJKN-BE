@@ -6,14 +6,16 @@ import (
 	"log"
 	"net/http"
 	"os"
-
-	"github.com/gorilla/mux"
-	"github.com/jackc/pgx/v5"
-	"github.com/joho/godotenv"
+	"strings"
 
 	"jagajkn/internal/handlers"
 	"jagajkn/internal/middleware"
 	"jagajkn/internal/repository"
+
+	"github.com/gorilla/mux"
+	"github.com/jackc/pgx/v5"
+	"github.com/joho/godotenv"
+	"github.com/rs/cors"
 )
 
 func main() {
@@ -44,6 +46,7 @@ func main() {
 	r.HandleFunc("/api/auth/login", userHandler.Login).Methods("POST")
 
 	protected := r.PathPrefix("/api").Subrouter()
+	protected.HandleFunc("/user/change-password", userHandler.ChangePassword).Methods("POST")
 	protected.Use(middleware.AuthMiddleware(os.Getenv("JWT_SECRET")))
 	protected.HandleFunc("/user/profile", userHandler.GetProfile).Methods("GET")
 
@@ -52,6 +55,16 @@ func main() {
 		log.Fatalf("Error creating tables: %v\n", err)
 	}
 
+	allowedOrigins := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
+	c := cors.New(cors.Options{
+        AllowedOrigins: allowedOrigins,                              
+        AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},  
+        AllowedHeaders: []string{"Content-Type", "Authorization"},  
+        AllowCredentials: true,                                    
+    })
+
+    handler := c.Handler(r)
+
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -59,7 +72,7 @@ func main() {
 	}
 
 	fmt.Printf("Server starting on port %s...\n", port)
-	log.Fatal(http.ListenAndServe(":"+port, r))
+	log.Fatal(http.ListenAndServe(":"+port, handler))
 }
 
 func createTables(conn *pgx.Conn) error {
