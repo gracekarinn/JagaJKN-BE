@@ -10,7 +10,6 @@ import (
 )
 
 type JWTClaims struct {
-	UserID string `json:"user_id"`
 	NIK    string `json:"nik"`
 	jwt.RegisteredClaims
 }
@@ -21,7 +20,6 @@ func GenerateID() string {
 
 func GenerateToken(user *models.User, secretKey string) (string, error) {
 	claims := JWTClaims{
-		UserID: user.ID,
 		NIK:    user.NIK,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
