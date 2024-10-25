@@ -128,24 +128,66 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 
 func (h *UserHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
+    nik, err := middleware.GetNIKFromContext(r)
+    if err != nil {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
 
-	userID, err := middleware.GetUserIDFromContext(r)
-	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
+    user, err := h.repo.GetUserByNIK(r.Context(), nik)
+    if err != nil {
+        http.Error(w, "User not found", http.StatusNotFound)
+        return
+    }
+
+    response := models.UserResponse{
+        User: user,
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(response)
+}
 
 
-	user, err := h.repo.GetUserByNIK(r.Context(), userID)
-	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
+func (h *UserHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+    nik, err := middleware.GetNIKFromContext(r)
+    if err != nil {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
 
-	response := models.UserResponse{
-		User: user,
-	}
+    var req models.ChangePasswordRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+    user, err := h.repo.GetUserByNIK(r.Context(), nik)
+    if err != nil {
+        http.Error(w, "User not found", http.StatusNotFound)
+        return
+    }
+
+    err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.OldPassword))
+    if err != nil {
+        http.Error(w, "Invalid old password", http.StatusUnauthorized)
+        return
+    }
+
+    hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+    if err != nil {
+        http.Error(w, "Error processing new password", http.StatusInternalServerError)
+        return
+    }
+
+
+    if err := h.repo.UpdatePassword(r.Context(), nik, string(hashedPassword)); err != nil {
+        http.Error(w, "Error updating password", http.StatusInternalServerError)
+        return
+    }
+
+    w.WriteHeader(http.StatusOK)
+    json.NewEncoder(w).Encode(map[string]string{
+        "message": "Password updated successfully",
+    })
 }
