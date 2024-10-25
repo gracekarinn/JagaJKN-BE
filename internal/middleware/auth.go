@@ -8,50 +8,53 @@ import (
 	"strings"
 )
 
+type contextKey string
+
+const (
+    NIKKey contextKey = "nik"
+)
+
 func AuthMiddleware(secretKey string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				http.Error(w, "Authorization header is required", http.StatusUnauthorized)
-				return
-			}
+    return func(next http.Handler) http.Handler {
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+            fmt.Println("Processing request in AuthMiddleware") 
 
-			parts := strings.Split(authHeader, " ")
-			if len(parts) != 2 || parts[0] != "Bearer" {
-				http.Error(w, "Invalid authorization header format", http.StatusUnauthorized)
-				return
-			}
+            authHeader := r.Header.Get("Authorization")
+            fmt.Printf("Auth Header: %s\n", authHeader) 
 
-			tokenString := parts[1]
+            if authHeader == "" {
+                http.Error(w, "Authorization header is required", http.StatusUnauthorized)
+                return
+            }
 
-			claims, err := utils.ValidateToken(tokenString, secretKey)
-			if err != nil {
-				http.Error(w, fmt.Sprintf("Invalid token: %v", err), http.StatusUnauthorized)
-				return
-			}
+            parts := strings.Split(authHeader, " ")
+            if len(parts) != 2 || parts[0] != "Bearer" {
+                http.Error(w, "Invalid authorization header format", http.StatusUnauthorized)
+                return
+            }
 
-			ctx := r.Context()
-			ctx = context.WithValue(ctx, "userID", claims.UserID)
-			ctx = context.WithValue(ctx, "nik", claims.NIK)
+            tokenString := parts[1]
+            claims, err := utils.ValidateToken(tokenString, secretKey)
+            if err != nil {
+                fmt.Printf("Token validation error: %v\n", err) 
+                http.Error(w, fmt.Sprintf("Invalid token: %v", err), http.StatusUnauthorized)
+                return
+            }
 
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
-}
+            fmt.Printf("Token claims NIK: %s\n", claims.NIK)
 
-func GetUserIDFromContext(r *http.Request) (string, error) {
-	userID, ok := r.Context().Value("userID").(string)
-	if !ok {
-		return "", fmt.Errorf("userID not found in context")
-	}
-	return userID, nil
+            ctx := r.Context()
+            ctx = context.WithValue(ctx, NIKKey, claims.NIK)
+            next.ServeHTTP(w, r.WithContext(ctx))
+        })
+    }
 }
 
 func GetNIKFromContext(r *http.Request) (string, error) {
-	nik, ok := r.Context().Value("nik").(string)
-	if !ok {
-		return "", fmt.Errorf("NIK not found in context")
-	}
-	return nik, nil
+    nik, ok := r.Context().Value(NIKKey).(string)
+    if !ok {
+        return "", fmt.Errorf("NIK not found in context")
+    }
+    return nik, nil
 }
+
