@@ -110,3 +110,14 @@ func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*mod
 
 	return &user, nil
 }
+
+func (r *UserRepository) UpdatePassword(ctx context.Context, nik string, hashedPassword string) error {
+    query := `
+        UPDATE "User"
+        SET password = $1
+        WHERE "NIK" = $2
+    `
+
+    _, err := r.conn.Exec(ctx, query, hashedPassword, nik)
+    return err
+}
