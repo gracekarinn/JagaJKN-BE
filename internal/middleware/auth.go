@@ -1,60 +1,51 @@
 package middleware
 
 import (
-	"context"
 	"fmt"
-	"jagajkn/internal/utils"
 	"net/http"
 	"strings"
+
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 )
 
-type contextKey string
+func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header is required"})
+			c.Abort()
+			return
+		}
 
-const (
-    NIKKey contextKey = "nik"
-)
+		bearerToken := strings.Split(authHeader, " ")
+		if len(bearerToken) != 2 || bearerToken[0] != "Bearer" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization format"})
+			c.Abort()
+			return
+		}
 
-func AuthMiddleware(secretKey string) func(http.Handler) http.Handler {
-    return func(next http.Handler) http.Handler {
-        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-            fmt.Println("Processing request in AuthMiddleware") 
+		token, err := jwt.Parse(bearerToken[1], func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return []byte(jwtSecret), nil
+		})
 
-            authHeader := r.Header.Get("Authorization")
-            fmt.Printf("Auth Header: %s\n", authHeader) 
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			c.Abort()
+			return
+		}
 
-            if authHeader == "" {
-                http.Error(w, "Authorization header is required", http.StatusUnauthorized)
-                return
-            }
-
-            parts := strings.Split(authHeader, " ")
-            if len(parts) != 2 || parts[0] != "Bearer" {
-                http.Error(w, "Invalid authorization header format", http.StatusUnauthorized)
-                return
-            }
-
-            tokenString := parts[1]
-            claims, err := utils.ValidateToken(tokenString, secretKey)
-            if err != nil {
-                fmt.Printf("Token validation error: %v\n", err) 
-                http.Error(w, fmt.Sprintf("Invalid token: %v", err), http.StatusUnauthorized)
-                return
-            }
-
-            fmt.Printf("Token claims NIK: %s\n", claims.NIK)
-
-            ctx := r.Context()
-            ctx = context.WithValue(ctx, NIKKey, claims.NIK)
-            next.ServeHTTP(w, r.WithContext(ctx))
-        })
-    }
+		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+			userID := claims["user_id"].(string)
+			c.Set("userID", userID)
+			c.Next()
+		} else {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
+			c.Abort()
+			return
+		}
+	}
 }
-
-func GetNIKFromContext(r *http.Request) (string, error) {
-    nik, ok := r.Context().Value(NIKKey).(string)
-    if !ok {
-        return "", fmt.Errorf("NIK not found in context")
-    }
-    return nik, nil
-}
-
