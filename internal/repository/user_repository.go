@@ -1,123 +1,46 @@
 package repository
 
 import (
-	"context"
 	"jagajkn/internal/models"
 
-	"github.com/jackc/pgx/v5"
+	"gorm.io/gorm"
 )
 
 type UserRepository struct {
-	conn *pgx.Conn
+	db *gorm.DB
 }
 
-func NewUserRepository(conn *pgx.Conn) *UserRepository {
-	return &UserRepository{
-		conn: conn,
-	}
+func NewUserRepository(db *gorm.DB) *UserRepository {
+	return &UserRepository{db: db}
 }
 
-func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) error {
-	query := `
-		INSERT INTO "User" (
-			id, created_at, "NIK", nama_lengkap, tanggal_lahir, 
-			no_telp, email, password, no_kartu_jkn, jenis_kelamin,
-			alamat, faskes_tingkat1, kelas_perawatan
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-	`
-
-	_, err := r.conn.Exec(ctx, query,
-		user.ID,
-		user.CreatedAt,
-		user.NIK,
-		user.NamaLengkap,
-		user.TanggalLahir,
-		user.NoTelp,
-		user.Email,
-		user.Password,
-		user.NoKartuJKN,
-		user.JenisKelamin,
-		user.Alamat,
-		user.FaskesTingkat1,
-		user.KelasPerawatan,
-	)
-
-	return err
+func (r *UserRepository) Create(user *models.User) error {
+	return r.db.Create(user).Error
 }
 
-func (r *UserRepository) GetUserByNIK(ctx context.Context, nik string) (*models.User, error) {
-	query := `
-		SELECT id, created_at, "NIK", nama_lengkap, tanggal_lahir,
-			no_telp, email, password, no_kartu_jkn, jenis_kelamin,
-			alamat, faskes_tingkat1, kelas_perawatan
-		FROM "User"
-		WHERE "NIK" = $1
-	`
-
+func (r *UserRepository) FindByNIK(nik string) (*models.User, error) {
 	var user models.User
-	err := r.conn.QueryRow(ctx, query, nik).Scan(
-		&user.ID,
-		&user.CreatedAt,
-		&user.NIK,
-		&user.NamaLengkap,
-		&user.TanggalLahir,
-		&user.NoTelp,
-		&user.Email,
-		&user.Password,
-		&user.NoKartuJKN,
-		&user.JenisKelamin,
-		&user.Alamat,
-		&user.FaskesTingkat1,
-		&user.KelasPerawatan,
-	)
-
+	err := r.db.Where("nik = ?", nik).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
-
 	return &user, nil
 }
 
-func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
-	query := `
-		SELECT id, created_at, "NIK", nama_lengkap, tanggal_lahir,
-			no_telp, email, password, no_kartu_jkn, jenis_kelamin,
-			alamat, faskes_tingkat1, kelas_perawatan
-		FROM "User"
-		WHERE email = $1
-	`
-
+func (r *UserRepository) FindByID(id string) (*models.User, error) {
 	var user models.User
-	err := r.conn.QueryRow(ctx, query, email).Scan(
-		&user.ID,
-		&user.CreatedAt,
-		&user.NIK,
-		&user.NamaLengkap,
-		&user.TanggalLahir,
-		&user.NoTelp,
-		&user.Email,
-		&user.Password,
-		&user.NoKartuJKN,
-		&user.JenisKelamin,
-		&user.Alamat,
-		&user.FaskesTingkat1,
-		&user.KelasPerawatan,
-	)
-
+	err := r.db.Where("id = ?", id).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
-
 	return &user, nil
 }
 
-func (r *UserRepository) UpdatePassword(ctx context.Context, nik string, hashedPassword string) error {
-    query := `
-        UPDATE "User"
-        SET password = $1
-        WHERE "NIK" = $2
-    `
-
-    _, err := r.conn.Exec(ctx, query, hashedPassword, nik)
-    return err
+func (r *RecordRepository) GetLastRecord(userID string) (*models.RecordKesehatan, error) {
+	var record models.RecordKesehatan
+	err := r.db.Where("user_id = ?", userID).Order("created_at desc").First(&record).Error
+	if err != nil {
+		return nil, err
+	}
+	return &record, nil
 }
