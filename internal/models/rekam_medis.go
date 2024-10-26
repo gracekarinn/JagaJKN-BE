@@ -33,25 +33,24 @@ type RecordInput struct {
 
 // Rekor kesehatan yang akan disimpan dalam blockchain
 type RecordKesehatan struct {
-	ID               string        `gorm:"type:varchar(36);primary_key" json:"id"`
-	CreatedAt        time.Time     `json:"createdAt"`
-	UpdatedAt        time.Time     `json:"updatedAt"`
-	UserID           string        `gorm:"type:varchar(36);not null" json:"userId"`
-	User             User          `gorm:"foreignKey:UserID" json:"user,omitempty"`
-	NoSEP            string        `gorm:"type:varchar(20);not null" json:"noSEP"`
-	TanggalMasuk     time.Time     `gorm:"not null" json:"tanggalMasuk"`
-	TanggalKeluar    *time.Time    `json:"tanggalKeluar,omitempty"`
-	JenisRawat       JenisRawat    `gorm:"type:jenis_rawat;not null" json:"jenisRawat"`
-	DiagnosaAwal     string        `gorm:"type:text;not null" json:"diagnosaAwal"`
-	DiagnosaPrimer   string        `gorm:"type:text;not null" json:"diagnosaPrimer"`
-	DiagnosaSekunder *string       `gorm:"type:text" json:"diagnosaSekunder,omitempty"`
-	IcdX             string        `gorm:"type:varchar(10);not null" json:"icdX"`
-	Tindakan         string        `gorm:"type:text;not null" json:"tindakan"`
-	StatusPulang     *StatusPulang `gorm:"type:status_pulang" json:"statusPulang,omitempty"`
-	// Untuk menyimpan hash dari record sebelumnya
-	HashPrevious   *string `gorm:"type:varchar(64)" json:"hashPrevious,omitempty"`
-	HashCurrent    string  `gorm:"type:varchar(64);not null" json:"hashCurrent"`
-	RetentionYears int     `gorm:"default:5" json:"retentionYears"`
+    NoSEP            string        `gorm:"type:varchar(20);primary_key" json:"noSEP"`
+    CreatedAt        time.Time     `json:"createdAt"`
+    UpdatedAt        time.Time     `json:"updatedAt"`
+    UserNIK          string        `gorm:"type:varchar(16);not null" json:"userNIK"`
+    User             User          `gorm:"foreignKey:UserNIK" json:"user,omitempty"`
+    TanggalMasuk     time.Time     `gorm:"not null" json:"tanggalMasuk"`
+    TanggalKeluar    *time.Time    `json:"tanggalKeluar,omitempty"`
+    JenisRawat       JenisRawat    `gorm:"type:jenis_rawat;not null" json:"jenisRawat"`
+    DiagnosaAwal     string        `gorm:"type:text;not null" json:"diagnosaAwal"`
+    DiagnosaPrimer   string        `gorm:"type:text;not null" json:"diagnosaPrimer"`
+    DiagnosaSekunder *string       `gorm:"type:text" json:"diagnosaSekunder,omitempty"`
+    IcdX             string        `gorm:"type:varchar(10);not null" json:"icdX"`
+    Tindakan         string        `gorm:"type:text;not null" json:"tindakan"`
+    StatusPulang     *StatusPulang `gorm:"type:status_pulang" json:"statusPulang,omitempty"`
+    // Untuk menyimpan hash dari record sebelumnya
+    HashPrevious   *string `gorm:"type:varchar(64)" json:"hashPrevious,omitempty"`
+    HashCurrent    string  `gorm:"type:varchar(64);not null" json:"hashCurrent"`
+    RetentionYears int     `gorm:"default:5" json:"retentionYears"`
 }
 
 type ResepObat struct {
@@ -67,7 +66,6 @@ type ResepObat struct {
 }
 
 func (r *RecordKesehatan) BeforeCreate(tx *gorm.DB) error {
-	r.ID = uuid.New().String()
 	r.TanggalMasuk = time.Now()
 	return nil
 }
@@ -80,9 +78,8 @@ func (r *ResepObat) BeforeCreate(tx *gorm.DB) error {
 
 func (r *RecordKesehatan) ToBlockchainRecord() map[string]interface{} {
 	return map[string]interface{}{
-		"id":               r.ID,
-		"userId":           r.UserID,
 		"noSEP":            r.NoSEP,
+		"userNIK":          r.UserNIK,
 		"tanggalMasuk":     r.TanggalMasuk,
 		"tanggalKeluar":    r.TanggalKeluar,
 		"jenisRawat":       r.JenisRawat,
