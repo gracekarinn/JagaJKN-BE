@@ -1,68 +1,67 @@
 package router
 
 import (
+	"log"
 	"net/http"
-
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 
 	"jagajkn/internal/config"
 	"jagajkn/internal/handler"
 	"jagajkn/internal/middleware"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
-func SetupRouter(db *gorm.DB, cfg *config.Config) http.Handler {
+func SetupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
+    r := gin.Default()
 
-	if gin.Mode() == gin.ReleaseMode {
-		gin.SetMode(gin.ReleaseMode)
-	}
+    r.Use(cors.New(cors.Config{
+        AllowOrigins:     []string{"*"},
+        AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+        AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+        ExposeHeaders:    []string{"Content-Length"},
+        AllowCredentials: true,
+        MaxAge:           12 * 60 * 60,
+    }))
 
-	router := gin.New()
+    r.Use(func(c *gin.Context) {
+        if c.Request.URL.Path != "/" && c.Request.URL.Path[len(c.Request.URL.Path)-1] == '/' {
+            c.Request.URL.Path = c.Request.URL.Path[:len(c.Request.URL.Path)-1]
+        }
+        c.Next()
+    })
 
+    r.Use(func(c *gin.Context) {
+        c.Set("config", cfg)
+        c.Next()
+    })
 
-	router.Use(gin.Logger())
-	router.Use(gin.Recovery())
-	
+    r.GET("/health", func(c *gin.Context) {
+        c.JSON(http.StatusOK, gin.H{"status": "ok"})
+    })
 
-	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{cfg.AllowedOrigin},
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-		MaxAge:          12 * 60 * 60, // 12 hours
-	}))
-
-
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status": "ok",
-		})
-	})
-
-
-	v1 := router.Group("/api/v1")
-	{
-
-		auth := v1.Group("/auth")
-		{
-			auth.POST("/register", handler.Register(db))
-			auth.POST("/login", handler.Login(db))
-		}
+    r.POST("/api/v1/auth/register", handler.Register(db))
+    r.POST("/api/v1/auth/login", handler.Login(db))
 
 
-		protected := v1.Group("/")
-		protected.Use(middleware.AuthMiddleware(cfg.JWTSecret))
-		{
-			records := protected.Group("/records")
-			{
-				records.POST("/", handler.CreateRecord(db))
-				records.GET("/", handler.GetUserRecords(db))
-				records.GET("/:id", handler.GetRecord(db))
-			}
-		}
-	}
+    api := r.Group("/api/v1")
+    {
+        records := api.Group("/records")
+        records.Use(middleware.AuthMiddleware(cfg.JWTSecret))
+        {
+            records.POST("", handler.CreateRecord(db))      
+            records.POST("/", handler.CreateRecord(db))      
+            records.GET("", handler.GetUserRecords(db))     
+            records.GET("/", handler.GetUserRecords(db))    
+            records.GET("/:id", handler.GetRecord(db))
+        }
+    }
 
-	return router
+    r.NoRoute(func(c *gin.Context) {
+        log.Printf("404 for path: %s", c.Request.URL.Path)
+        c.JSON(http.StatusNotFound, gin.H{"error": "Route not found"})
+    })
+
+    return r
 }
