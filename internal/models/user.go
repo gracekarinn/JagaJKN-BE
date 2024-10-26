@@ -37,9 +37,9 @@ type UserLoginInput struct {
 
 // User model for authentication and basic info
 type User struct {
-	ID          string     `gorm:"type:varchar(36);primary_key" json:"id"`
+	NIK 	   string     `gorm:"type:varchar(16);primaryKey" json:"nik"`
+	ID          string     `gorm:"primaryKey" json:"id"`
 	CreatedAt   time.Time  `json:"createdAt"`
-	NIK         string     `gorm:"type:varchar(16);uniqueIndex;not null" json:"nik"`
 	NamaLengkap string     `gorm:"type:varchar(255);not null" json:"namaLengkap"`
 	NoTelp      string     `gorm:"type:varchar(20);not null" json:"noTelp"`
 	Email       *string    `gorm:"type:varchar(255);uniqueIndex" json:"email,omitempty"`
@@ -69,7 +69,6 @@ func (u *User) CheckPassword(password string) error {
 
 func (u *User) ToJSON() map[string]interface{} {
 	return map[string]interface{}{
-		"id":             u.ID,
 		"nik":            u.NIK,
 		"namaLengkap":    u.NamaLengkap,
 		"noTelp":         u.NoTelp,
