@@ -11,13 +11,28 @@ contract MedicalRecords {
         bool exists;         
     }
     
+    // Struktur untuk user verification
+    struct UserRegistration {
+        bytes32 userHash;
+        uint256 timestamp;
+        bool exists;
+    }
+    
     // Storage buat records: SEP number -> Record data
     mapping(string => RecordHash) private records;
     
-    // Event that will be emitted when a new record is added
+    // Storage buat user verification: NIK -> User data
+    mapping(string => UserRegistration) private users;
+    
+    // Events
     event RecordAdded(
         string noSEP,
         string userNIK,
+        uint256 timestamp
+    );
+
+    event UserRegistered(
+        string nik,
         uint256 timestamp
     );
     
@@ -29,6 +44,7 @@ contract MedicalRecords {
     ) public {
         // Validasi
         require(!records[noSEP].exists, "Record already exists");
+        require(users[userNIK].exists, "User not registered"); 
         
         // Buat record
         records[noSEP] = RecordHash({
@@ -51,7 +67,41 @@ contract MedicalRecords {
         // Check if record exists
         require(records[noSEP].exists, "Record does not exist");
         
-       
         return records[noSEP].dataHash == dataHash;
+    }
+
+    // Register new user
+    function addUser(
+        string memory nik,
+        bytes32 userHash
+    ) public {
+        require(!users[nik].exists, "User already registered");
+        
+        users[nik] = UserRegistration({
+            userHash: userHash,
+            timestamp: block.timestamp,
+            exists: true
+        });
+        
+        emit UserRegistered(nik, block.timestamp);
+    }
+
+    // Verify user
+    function verifyUser(
+        string memory nik,
+        bytes32 userHash
+    ) public view returns (bool) {
+        require(users[nik].exists, "User not registered");
+        
+        return users[nik].userHash == userHash;
+    }
+
+    // Optional: Get user registration timestamp
+    function getUserRegistrationTime(
+        string memory nik
+    ) public view returns (uint256) {
+        require(users[nik].exists, "User not registered");
+        
+        return users[nik].timestamp;
     }
 }
