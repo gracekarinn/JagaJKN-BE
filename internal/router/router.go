@@ -1,16 +1,15 @@
 package router
 
 import (
-	"log"
 	"net/http"
-
-	"jagajkn/internal/config"
-	"jagajkn/internal/handler"
-	"jagajkn/internal/middleware"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"jagajkn/internal/config"
+	"jagajkn/internal/handler"
+	"jagajkn/internal/middleware"
 )
 
 func SetupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
@@ -22,7 +21,7 @@ func SetupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
         AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
         ExposeHeaders:    []string{"Content-Length"},
         AllowCredentials: true,
-        MaxAge:           12 * 60 * 60,
+        MaxAge:          12 * 60 * 60,
     }))
 
     r.Use(func(c *gin.Context) {
@@ -41,27 +40,16 @@ func SetupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
         c.JSON(http.StatusOK, gin.H{"status": "ok"})
     })
 
-    r.POST("/api/v1/auth/register", handler.Register(db))
-    r.POST("/api/v1/auth/login", handler.Login(db))
+    authHandler := handler.NewAuthHandler(db)
 
+    r.POST("/api/v1/auth/register", authHandler.Register())
+    r.POST("/api/v1/auth/login", authHandler.Login())
 
     api := r.Group("/api/v1")
+    api.Use(middleware.AuthMiddleware(cfg.JWTSecret))
     {
-        records := api.Group("/records")
-        records.Use(middleware.AuthMiddleware(cfg.JWTSecret))
-        {
-            records.POST("", handler.CreateRecord(db))      
-            records.POST("/", handler.CreateRecord(db))      
-            records.GET("", handler.GetUserRecords(db))     
-            records.GET("/", handler.GetUserRecords(db))    
-            records.GET("/:id", handler.GetRecord(db))
-        }
+        // nanti 
     }
-
-    r.NoRoute(func(c *gin.Context) {
-        log.Printf("404 for path: %s", c.Request.URL.Path)
-        c.JSON(http.StatusNotFound, gin.H{"error": "Route not found"})
-    })
 
     return r
 }
