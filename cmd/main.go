@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
+	bService "jagajkn/internal/blockchain/service"
 	"jagajkn/internal/config"
 	"jagajkn/internal/router"
 )
@@ -19,11 +19,15 @@ func main() {
         log.Fatalf("Failed to connect to database: %v", err)
     }
 
-    r := router.SetupRouter(db, cfg)
+    blockchainSvc, err := bService.NewBlockchainService(cfg.GetBlockchainConfig())
+    if err != nil {
+        log.Fatalf("Failed to initialize blockchain service: %v", err)
+    }
 
-    serverAddr := fmt.Sprintf(":%s", cfg.ServerPort)
-    log.Printf("Server starting on %s", serverAddr)
-    if err := r.Run(serverAddr); err != nil {
+    r := router.SetupRouter(db, cfg, blockchainSvc)
+
+    log.Printf("Server starting on :%s", cfg.ServerPort)
+    if err := r.Run(":" + cfg.ServerPort); err != nil {
         log.Fatalf("Failed to start server: %v", err)
     }
 }
