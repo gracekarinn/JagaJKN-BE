@@ -7,13 +7,15 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	bService "jagajkn/internal/blockchain/service"
 	"jagajkn/internal/config"
 	"jagajkn/internal/handler"
 	"jagajkn/internal/middleware"
 )
 
-func SetupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
+func SetupRouter(db *gorm.DB, cfg *config.Config, blockchainSvc *bService.BlockchainService) *gin.Engine {
     r := gin.Default()
+
 
     r.Use(cors.New(cors.Config{
         AllowOrigins:     []string{"*"},
@@ -40,15 +42,17 @@ func SetupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
         c.JSON(http.StatusOK, gin.H{"status": "ok"})
     })
 
-    authHandler := handler.NewAuthHandler(db)
+    authHandler := handler.NewAuthHandler(db, blockchainSvc)
 
     r.POST("/api/v1/auth/register", authHandler.Register())
     r.POST("/api/v1/auth/login", authHandler.Login())
+    r.GET("/api/v1/auth/verify", authHandler.VerifyUserRegistration())
+    r.GET("/api/v1/auth/contract-status", authHandler.VerifyContractStatus())
 
     api := r.Group("/api/v1")
     api.Use(middleware.AuthMiddleware(cfg.JWTSecret))
     {
-        // nanti 
+        // Nanti
     }
 
     return r
