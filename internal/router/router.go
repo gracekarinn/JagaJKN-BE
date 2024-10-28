@@ -49,10 +49,16 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, blockchainSvc *bService.Blockc
     r.GET("/api/v1/auth/check-registration", authHandler.CheckUserRegistration())
     r.GET("/api/v1/auth/contract-status", authHandler.VerifyContractStatus())
 
+    recordHandler := handler.NewRecordHandler(db, blockchainSvc)
     api := r.Group("/api/v1")
     api.Use(middleware.AuthMiddleware(cfg.JWTSecret))
     {
-        // Nanti
+        records := api.Group("/records")
+        {
+            records.POST("", recordHandler.CreateRecord())
+            records.GET("", recordHandler.GetUserRecords())
+            records.GET("/:noSEP", recordHandler.GetRecord())
+        }
     }
 
     return r
