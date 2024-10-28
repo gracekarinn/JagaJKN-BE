@@ -46,7 +46,7 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, blockchainSvc *bService.Blockc
 
     r.POST("/api/v1/auth/register", authHandler.Register())
     r.POST("/api/v1/auth/login", authHandler.Login())
-    r.GET("/api/v1/auth/verify", authHandler.VerifyUserRegistration())
+    r.GET("/api/v1/auth/check-registration", authHandler.CheckUserRegistration())
     r.GET("/api/v1/auth/contract-status", authHandler.VerifyContractStatus())
 
     api := r.Group("/api/v1")
