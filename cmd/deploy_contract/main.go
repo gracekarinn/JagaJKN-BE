@@ -4,67 +4,96 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math/big"
 	"os"
+	"time"
+
+	"jagajkn/internal/blockchain/contracts"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/joho/godotenv"
-
-	"jagajkn/internal/blockchain/contracts"
 )
 
 func main() {
+    // Load .env
     if err := godotenv.Load(); err != nil {
         log.Fatal("Error loading .env file")
     }
 
+    log.Println("Connecting to blockchain...")
     client, err := ethclient.Dial(os.Getenv("BLOCKCHAIN_PROVIDER"))
     if err != nil {
-        log.Fatal(err)
+        log.Fatalf("Failed to connect to blockchain: %v", err)
     }
 
+    // Get chain ID
+    chainID, err := client.ChainID(context.Background())
+    if err != nil {
+        log.Fatalf("Failed to get chain ID: %v", err)
+    }
+    log.Printf("Connected to chain ID: %s", chainID.String())
 
+    // Load private key
     privateKey, err := crypto.HexToECDSA(os.Getenv("BLOCKCHAIN_PRIVATE_KEY"))
     if err != nil {
-        log.Fatal(err)
+        log.Fatalf("Failed to load private key: %v", err)
     }
 
-
-    chainID := big.NewInt(1337) 
+    // Create auth
     auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
     if err != nil {
-        log.Fatal(err)
+        log.Fatalf("Failed to create auth: %v", err)
     }
 
+    // Set gas price and limit
+    auth.GasLimit = uint64(5000000)
+    gasPrice, err := client.SuggestGasPrice(context.Background())
+    if err != nil {
+        log.Fatalf("Failed to get gas price: %v", err)
+    }
+    auth.GasPrice = gasPrice
 
-    auth.GasPrice = big.NewInt(1000000000)
-    auth.GasLimit = uint64(3000000)
-
-
-    address, tx, _, err := contracts.DeployContracts(auth, client)
+    log.Println("Deploying contract...")
+    address, tx, instance, err := contracts.DeployContracts(auth, client)
     if err != nil {
         log.Fatalf("Failed to deploy contract: %v", err)
     }
+    log.Printf("Contract deploying in transaction: %s", tx.Hash().Hex())
 
-    fmt.Printf("Contract deploying in transaction: %s\n", tx.Hash().Hex())
-
-
-    _, err = bind.WaitMined(context.Background(), client, tx)
+    // Wait for deployment
+    ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+    defer cancel()
+    _, err = bind.WaitMined(ctx, client, tx)
     if err != nil {
-        log.Fatalf("Failed to wait for contract deployment: %v", err)
+        log.Fatalf("Failed to wait for deployment: %v", err)
     }
 
-    fmt.Printf("Contract deployed to: %s\n", address.Hex())
-    
-    f, err := os.OpenFile(".env", os.O_APPEND|os.O_WRONLY, 0644)
+    // Verify contract code
+    code, err := client.CodeAt(context.Background(), address, nil)
+    if err != nil {
+        log.Fatalf("Failed to get contract code: %v", err)
+    }
+    log.Printf("Contract deployed to: %s", address.Hex())
+    log.Printf("Contract code size: %d bytes", len(code))
+    if len(code) == 0 {
+        log.Fatal("No contract code at deployed address")
+    }
+
+    // Verify contract functionality
+    log.Println("Verifying contract functionality...")
+    if instance == nil {
+        log.Fatal("Contract instance is nil")
+    }
+
+    // Update .env
+    env, err := os.OpenFile(".env", os.O_APPEND|os.O_WRONLY, 0644)
     if err != nil {
         log.Fatal(err)
     }
-    defer f.Close()
-
-    if _, err := f.WriteString(fmt.Sprintf("\nCONTRACT_ADDRESS=%s", address.Hex())); err != nil {
+    if _, err := env.WriteString(fmt.Sprintf("\nCONTRACT_ADDRESS=%s", address.Hex())); err != nil {
         log.Fatal(err)
     }
+    log.Println("Contract address saved to .env")
+    log.Println("Deployment successful!")
 }
