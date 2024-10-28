@@ -1,13 +1,14 @@
 package handler
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"log"
 	"net/http"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
 	"gorm.io/gorm"
@@ -160,50 +161,98 @@ func (h *AuthHandler) Login() gin.HandlerFunc {
 
 
 func calculateUserHash(user *models.User) string {
-    data := fmt.Sprintf("%s-%s-%s", user.NIK, user.NamaLengkap, user.NoTelp)
+    // Create consistent data string
+    data := fmt.Sprintf("%s:%s:%s", 
+        user.NIK,
+        user.NamaLengkap,
+        user.NoTelp,
+    )
     if user.Email != nil {
-        data += *user.Email
+        data += ":" + *user.Email
     }
     
     log.Printf("Calculating hash for data: %s", data)
     
-    hash := sha256.Sum256([]byte(data))
-    hashStr := hex.EncodeToString(hash[:])
+    // Use Keccak256 for consistency with Solidity
+    hash := crypto.Keccak256([]byte(data))
+    hashStr := hex.EncodeToString(hash)
     
     log.Printf("Generated hash: %s", hashStr)
     return hashStr
 }
 
-func (h *AuthHandler) VerifyUserRegistration() gin.HandlerFunc {
+func (h *AuthHandler) CheckUserRegistration() gin.HandlerFunc {
     return func(c *gin.Context) {
+        log.Println("Starting registration check...")
+        
         nik := c.Query("nik")
         if nik == "" {
             c.JSON(http.StatusBadRequest, gin.H{"error": "NIK is required"})
             return
         }
 
+        log.Printf("Checking NIK: %s", nik)
+
+        // Get user from database
         var user models.User
         if err := h.db.Where("nik = ?", nik).First(&user).Error; err != nil {
-            c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+            log.Printf("User not found in database: %v", err)
+            c.JSON(http.StatusNotFound, gin.H{"error": "User not found in database"})
             return
         }
 
-        userHash := calculateUserHash(&user)
+        log.Printf("User found in database: %s", user.NamaLengkap)
 
-        verified, err := h.blockchainSvc.VerifyUserRegistration(c.Request.Context(), nik, userHash)
-        if err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify registration"})
+        // Calculate hash
+        userHash := calculateUserHash(&user)
+        log.Printf("Calculated user hash: %s", userHash)
+
+        // Convert string hash to bytes32
+        var hashBytes [32]byte
+        copy(hashBytes[:], []byte(userHash))
+
+        // Check blockchain registration with detailed logging
+        opts := &bind.CallOpts{
+            Context: c.Request.Context(),
+        }
+
+        contract := h.blockchainSvc.GetContract()
+        if contract == nil {
+            log.Println("Contract not initialized")
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Contract not initialized"})
             return
+        }
+
+        log.Println("Checking blockchain registration...")
+        isRegistered, err := contract.IsUserRegistered(opts, nik)
+        if err != nil {
+            log.Printf("Blockchain check failed: %v", err)
+            c.JSON(http.StatusInternalServerError, gin.H{
+                "error": "Failed to check blockchain registration",
+                "details": err.Error(),
+            })
+            return
+        }
+
+        log.Printf("Blockchain registration status: %v", isRegistered)
+
+        // If registered, verify hash
+        var verificationStatus *bool
+        if isRegistered {
+            verified, err := contract.VerifyUser(opts, nik, hashBytes)
+            if err != nil {
+                log.Printf("Hash verification failed: %v", err)
+            } else {
+                verificationStatus = &verified
+                log.Printf("Hash verification status: %v", verified)
+            }
         }
 
         c.JSON(http.StatusOK, gin.H{
-            "nik": nik,
-            "verified": verified,
-            "registrationDetails": gin.H{
-                "namaLengkap": user.NamaLengkap,
-                "email": user.Email,
-                "noTelp": user.NoTelp,
-            },
+            "database_status": "found",
+            "blockchain_status": isRegistered,
+            "hash_verified": verificationStatus,
+            "calculated_hash": userHash,
         })
     }
 }
