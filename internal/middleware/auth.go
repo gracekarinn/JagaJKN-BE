@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 )
 
 func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
@@ -41,13 +41,22 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
         }
 
         if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-            if userNIK, exists := claims["user_nik"].(string); exists {
-                log.Printf("User NIK from token: %s", userNIK)
-                c.Set("userNIK", userNIK)
+            log.Printf("Token claims: %+v", claims)
+            
+            if nik, exists := claims["nik"]; exists {
+                nikStr, ok := nik.(string)
+                if !ok {
+                    log.Printf("NIK is not a string: %v", nik)
+                    c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid NIK format in token"})
+                    c.Abort()
+                    return
+                }
+                log.Printf("User NIK from token: %s", nikStr)
+                c.Set("userNIK", nikStr)
                 c.Next()
                 return
             }
-            log.Printf("User ID not found in claims: %+v", claims)
+            log.Printf("NIK not found in claims: %+v", claims)
         }
 
         c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
