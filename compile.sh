@@ -1,10 +1,13 @@
 #!/bin/bash
 
-# Buat cek
+echo "Cleaning build directory..."
 rm -rf build
-mkdir build
+mkdir -p build
 
-# Compile contract
-solc --abi --bin contracts/MedicalRecords.sol -o build
+echo "Compiling contract..."
+solc --abi --bin contracts/MedicalRecords.sol -o build --overwrite
 
-echo "Contract compiled successfully!"
+echo "Generating Go bindings..."
+abigen --bin=build/MedicalRecords.bin --abi=build/MedicalRecords.abi --pkg=contracts --out=internal/blockchain/contracts/medical_records.go
+
+echo "Compilation complete!"
