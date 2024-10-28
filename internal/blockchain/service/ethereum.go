@@ -20,45 +20,41 @@ import (
 type BlockchainService struct {
     client     *ethclient.Client
     privateKey *ecdsa.PrivateKey
-    contract   *contracts.Contracts  
+    Contract   *contracts.Contracts  
     contractAddr common.Address
 }
 
 
 func NewBlockchainService(cfg *config.BlockchainConfig) (*BlockchainService, error) {
-    // Connect ke blockchain
     client, err := ethclient.Dial(cfg.ProviderURL)
     if err != nil {
         return nil, fmt.Errorf("failed to connect to blockchain: %v", err)
     }
 
-    // Load private key
     privateKey, err := crypto.HexToECDSA(cfg.PrivateKey)
     if err != nil {
         return nil, fmt.Errorf("failed to load private key: %v", err)
     }
 
-    // Load contract
     var contract *contracts.Contracts
-    contractAddr := common.HexToAddress(cfg.ContractAddress)
+    var contractAddr common.Address
+
     if cfg.ContractAddress != "" {
-        contract, err = contracts.NewContracts(
-            contractAddr,
-            client,
-        )
+        contractAddr = common.HexToAddress(cfg.ContractAddress)
+        contract, err = contracts.NewContracts(contractAddr, client)
         if err != nil {
             return nil, fmt.Errorf("failed to load contract: %v", err)
         }
+        log.Printf("Contract loaded at address: %s", contractAddr.Hex())
     }
 
     return &BlockchainService{
         client:       client,
         privateKey:   privateKey,
-        contract:     contract,
+        Contract:     contract,          
         contractAddr: contractAddr,
     }, nil
 }
-
 
 func (s *BlockchainService) TestConnection() error {
     blockNumber, err := s.client.BlockNumber(context.Background())
@@ -71,7 +67,7 @@ func (s *BlockchainService) TestConnection() error {
 
 
 func (s *BlockchainService) SaveMedicalRecord(ctx context.Context, record *models.RecordKesehatan) error {
-    if s.contract == nil {
+    if s.Contract == nil {
         return fmt.Errorf("contract not initialized")
     }
 
@@ -85,7 +81,7 @@ func (s *BlockchainService) SaveMedicalRecord(ctx context.Context, record *model
     hash := s.calculateRecordHash(record)
 
     // Add record to blockchain
-    tx, err := s.contract.AddRecord(auth, record.NoSEP, record.UserNIK, hash)
+    tx, err := s.Contract.AddRecord(auth, record.NoSEP, record.UserNIK, hash)
     if err != nil {
         return fmt.Errorf("failed to add record: %v", err)
     }
@@ -101,13 +97,13 @@ func (s *BlockchainService) SaveMedicalRecord(ctx context.Context, record *model
 
 
 func (s *BlockchainService) VerifyMedicalRecord(ctx context.Context, record *models.RecordKesehatan) (bool, error) {
-    if s.contract == nil {
+    if s.Contract == nil {
         return false, fmt.Errorf("contract not initialized")
     }
 
     hash := s.calculateRecordHash(record)
 
-    return s.contract.VerifyRecord(&bind.CallOpts{
+    return s.Contract.VerifyRecord(&bind.CallOpts{
         Context: ctx,
     }, record.NoSEP, hash)
 }
@@ -156,40 +152,62 @@ func (s *BlockchainService) createTransactOpts(ctx context.Context) (*bind.Trans
 }
 
 func (s *BlockchainService) SaveUserRegistration(ctx context.Context, nik, userHash string) error {
+    if s.Contract == nil {
+        return fmt.Errorf("contract not initialized")
+    }
+
     auth, err := s.createTransactOpts(ctx)
     if err != nil {
         return fmt.Errorf("failed to create transaction options: %w", err)
     }
 
+    // Convert string hash to bytes32 using Keccak256
+    hashData := []byte(userHash)
     var hashBytes [32]byte
-    copy(hashBytes[:], []byte(userHash))
+    hash := crypto.Keccak256(hashData)
+    copy(hashBytes[:], hash)
 
-    tx, err := s.contract.AddUser(auth, nik, hashBytes)
+    // Log the hash being sent
+    log.Printf("Sending hash to blockchain: %x", hashBytes)
+
+    tx, err := s.Contract.AddUser(auth, nik, hashBytes)
     if err != nil {
         return fmt.Errorf("failed to save user to blockchain: %w", err)
     }
 
     _, err = bind.WaitMined(ctx, s.client, tx)
-    return err
+    if err != nil {
+        return fmt.Errorf("failed waiting for transaction: %w", err)
+    }
+
+    return nil
 }
 
 func (s *BlockchainService) VerifyUserRegistration(ctx context.Context, nik, userHash string) (bool, error) {
-    var hashBytes [32]byte
-    copy(hashBytes[:], []byte(userHash))
-
-    verified, err := s.contract.VerifyUser(&bind.CallOpts{
-        Context: ctx,
-    }, nik, hashBytes)
-
-    if err != nil {
-        return false, fmt.Errorf("failed to verify user on blockchain: %w", err)
+    if s.Contract == nil {
+        return false, fmt.Errorf("contract not initialized")
     }
 
-    return verified, nil
+    // Convert string hash to bytes32 using the same method as registration
+    hashData := []byte(userHash)
+    var hashBytes [32]byte
+    hash := crypto.Keccak256(hashData)
+    copy(hashBytes[:], hash)
+
+    // Log the hash being verified
+    log.Printf("Verifying hash: %x", hashBytes)
+
+    return s.Contract.VerifyUser(&bind.CallOpts{
+        Context: ctx,
+    }, nik, hashBytes)
+}
+
+func (s *BlockchainService) GetContract() *contracts.Contracts {
+    return s.Contract
 }
 
 func (s *BlockchainService) CheckContractStatus(ctx context.Context) (map[string]interface{}, error) {
-    if s.contract == nil {
+    if s.Contract == nil {
         return nil, fmt.Errorf("contract not initialized")
     }
 
