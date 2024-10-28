@@ -48,6 +48,7 @@ type RecordKesehatan struct {
     Tindakan         string        `gorm:"type:text;not null" json:"tindakan"`
     StatusPulang     *StatusPulang `gorm:"type:status_pulang" json:"statusPulang,omitempty"`
     // Untuk menyimpan hash dari record sebelumnya
+	BlockchainVerified bool `gorm:"-" json:"blockchainVerified"`
     HashPrevious   *string `gorm:"type:varchar(64)" json:"hashPrevious,omitempty"`
     HashCurrent    string  `gorm:"type:varchar(64);not null" json:"hashCurrent"`
     RetentionYears int     `gorm:"default:5" json:"retentionYears"`
