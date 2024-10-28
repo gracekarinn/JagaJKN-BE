@@ -20,26 +20,30 @@ func NewRecordRepository(db *gorm.DB) RecordRepository {
 }
 
 
-func (r *recordRepositoryImpl) Create(ctx context.Context, record *models.RecordKesehatan) error {
-    return r.db.WithContext(ctx).Create(record).Error
-}
-
-
 func (r *recordRepositoryImpl) GetByNoSEP(ctx context.Context, noSEP string) (*models.RecordKesehatan, error) {
     var record models.RecordKesehatan
-    err := r.db.WithContext(ctx).Where("no_sep = ?", noSEP).First(&record).Error
+    err := r.db.WithContext(ctx).
+        Preload("User").  
+        Where("no_sep = ?", noSEP).
+        First(&record).Error
     if err != nil {
         return nil, err
     }
     return &record, nil
 }
 
-
 func (r *recordRepositoryImpl) GetByUserNIK(ctx context.Context, userNIK string) ([]*models.RecordKesehatan, error) {
     var records []*models.RecordKesehatan
-    err := r.db.WithContext(ctx).Where("user_nik = ?", userNIK).Find(&records).Error
+    err := r.db.WithContext(ctx).
+        Preload("User").  
+        Where("user_nik = ?", userNIK).
+        Find(&records).Error
     if err != nil {
         return nil, err
     }
     return records, nil
+}
+
+func (r *recordRepositoryImpl) Create(ctx context.Context, record *models.RecordKesehatan) error {
+    return r.db.WithContext(ctx).Create(record).Error
 }
