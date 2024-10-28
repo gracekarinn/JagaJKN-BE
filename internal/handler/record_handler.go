@@ -19,7 +19,7 @@ type RecordHandler struct {
 
 func NewRecordHandler(db *gorm.DB, blockchainSvc *bService.BlockchainService) *RecordHandler {
     recordRepo := repository.NewRecordRepository(db)
-    recordService := service.NewRecordService(recordRepo, blockchainSvc)
+    recordService := service.NewRecordService(db, recordRepo, blockchainSvc)  // Pass db here
     return &RecordHandler{
         recordService: recordService,
     }
