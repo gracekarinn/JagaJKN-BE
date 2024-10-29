@@ -276,3 +276,40 @@ func (s *BlockchainService) CheckContractStatus(ctx context.Context) (map[string
 
     return status, nil
 }
+
+
+func (s *BlockchainService) CreateRecordHash(record *models.RecordKesehatan) (string, error) {
+    if record == nil {
+        return "", fmt.Errorf("record is nil")
+    }
+
+    data := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s",
+        record.NoSEP,
+        record.UserNIK,
+        record.TanggalMasuk.Format("2006-01-02"),
+        string(record.JenisRawat),
+        record.DiagnosaAwal,
+        record.DiagnosaPrimer,
+        record.IcdX,
+    )
+
+    hash := crypto.Keccak256Hash([]byte(data))
+    
+    return hash.Hex(), nil
+}
+
+func (s *BlockchainService) CreateUserHash(user *models.User) (string, error) {
+    if user == nil {
+        return "", fmt.Errorf("user is nil")
+    }
+
+    data := fmt.Sprintf("%s-%s-%s",
+        user.NIK,
+        user.NamaLengkap,
+        user.NoTelp,
+    )
+
+    hash := crypto.Keccak256Hash([]byte(data))
+    
+    return hash.Hex(), nil
+}
