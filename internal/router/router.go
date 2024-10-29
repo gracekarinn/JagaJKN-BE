@@ -11,7 +11,6 @@ import (
 	"jagajkn/internal/config"
 	"jagajkn/internal/handler"
 	"jagajkn/internal/middleware"
-	"jagajkn/internal/models"
 )
 
 func SetupRouter(db *gorm.DB, cfg *config.Config, blockchainSvc *bService.BlockchainService) *gin.Engine {
@@ -52,44 +51,43 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, blockchainSvc *bService.Blockc
     {
         auth.POST("/register", authHandler.Register())
         auth.POST("/login", authHandler.Login())
+        
+        auth.POST("/admin/login", authHandler.AdminLogin())
+        
+        auth.POST("/faskes/login", authHandler.FaskesLogin())
+        
         auth.GET("/check-registration", authHandler.CheckUserRegistration())
         auth.GET("/contract-status", authHandler.VerifyContractStatus())
     }
 
     api := r.Group("/api/v1")
-    api.Use(middleware.AuthMiddleware(cfg.JWTSecret))
     {
         userRoutes := api.Group("/user")
-        userRoutes.Use(middleware.RequireRole(models.RoleUser, models.RoleAdmin, models.RoleFaskes))
+        userRoutes.Use(middleware.UserAuthMiddleware(cfg.JWTSecret))
         {
             userRoutes.GET("/records", recordHandler.GetUserRecords())
             userRoutes.GET("/records/:noSEP", recordHandler.GetRecord())
         }
 
         adminRoutes := api.Group("/admin")
-        adminRoutes.Use(middleware.RequireRole(models.RoleAdmin))
+        adminRoutes.Use(middleware.AdminAuthMiddleware(cfg.JWTSecret))
         {
             adminRoutes.POST("/users/import", adminHandler.ImportUsersFromCSV())
+            adminRoutes.GET("/users", adminHandler.GetAllUsers())
             
             adminRoutes.POST("/faskes", adminHandler.CreateFaskes())
             adminRoutes.GET("/faskes", adminHandler.GetAllFaskes())
-            adminRoutes.GET("/faskes/:id", adminHandler.GetFaskes())
-            
-            adminRoutes.GET("/users", adminHandler.GetAllUsers())
+            adminRoutes.GET("/faskes/:kodeFaskes", adminHandler.GetFaskes())
+            adminRoutes.PUT("/faskes/:kodeFaskes", adminHandler.UpdateFaskes())
+            adminRoutes.DELETE("/faskes/:kodeFaskes", adminHandler.DeleteFaskes())
         }
-
-        // faskesRoutes := api.Group("/faskes")
-        // faskesRoutes.Use(middleware.RequireRole(models.RoleFaskes))
-        // {
-        //     faskesRoutes.POST("/records", recordHandler.CreateRecord())
-        //     faskesRoutes.PUT("/records/:noSEP", recordHandler.UpdateRecord())
-        //     faskesRoutes.GET("/records", recordHandler.GetFaskesRecords())
-        // }
+        faskesRoutes := api.Group("/faskes")
+        faskesRoutes.Use(middleware.FaskesAuthMiddleware(cfg.JWTSecret))
+        {
+            faskesRoutes.POST("/records", recordHandler.CreateRecord())
+            // faskesRoutes.GET("/records", recordHandler.GetFaskesRecords())
+        }
     }
-
-
-
-
 
     return r
 }
