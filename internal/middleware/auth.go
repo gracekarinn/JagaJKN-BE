@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	"jagajkn/internal/models"
+
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
 )
@@ -51,8 +53,22 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
                     c.Abort()
                     return
                 }
-                log.Printf("User NIK from token: %s", nikStr)
+                role, exists := claims["role"]
+                if !exists {
+                    log.Printf("Role not found in claims: %+v", claims)
+                    c.JSON(http.StatusUnauthorized, gin.H{"error": "Role not found in token"})
+                    c.Abort()
+                    return
+                }
+                roleStr, ok := role.(string)
+                if !ok {
+                    log.Printf("Role is not a string: %v", role)
+                    c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid role format in token"})
+                    c.Abort()
+                    return
+                }
                 c.Set("userNIK", nikStr)
+                c.Set("userRole", roleStr)
                 c.Next()
                 return
             }
@@ -61,5 +77,28 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 
         c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
         c.Abort()
+    }
+}
+
+func RequireRole(allowedRoles ...models.Role) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        userRole := models.Role(c.GetString("userRole"))
+        isAllowed := false
+        for _, role := range allowedRoles {
+            if userRole == role {
+                isAllowed = true
+                break
+            }
+        }
+
+        if !isAllowed {
+            c.JSON(http.StatusForbidden, gin.H{
+                "error": "You don't have permission to access this resource",
+            })
+            c.Abort()
+            return
+        }
+        
+        c.Next()
     }
 }
