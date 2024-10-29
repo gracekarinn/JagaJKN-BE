@@ -9,13 +9,6 @@ import (
 
 type Gender string
 type KelasBPJS string
-type Role string
-
-const (
-	RoleAdmin Role = "ADMIN"
-	RoleUser  Role = "USER"
-	RoleFaskes Role = "FASKES"
-)
 
 const (
 	LakiLaki  Gender = "LAKI_LAKI"
@@ -41,7 +34,6 @@ type UserLoginInput struct {
 
 type User struct {
 	NIK 	    string     `gorm:"type:varchar(16);primaryKey" json:"nik"`
-	Role        Role       `gorm:"type:varchar(10);not null;default:'USER'" json:"role"`
 	CreatedAt   time.Time  `json:"createdAt"`
 	NamaLengkap string     `gorm:"type:varchar(255);not null" json:"namaLengkap"`
 	NoTelp      string     `gorm:"type:varchar(20);not null" json:"noTelp"`
