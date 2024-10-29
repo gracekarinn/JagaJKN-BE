@@ -3,9 +3,12 @@ package handler
 import (
 	"encoding/csv"
 	"fmt"
+	"io"
 	bService "jagajkn/internal/blockchain/service"
 	"jagajkn/internal/models"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -21,6 +24,12 @@ func NewAdminHandler(db *gorm.DB, blockchainSvc *bService.BlockchainService) *Ad
         db:            db,
         blockchainSvc: blockchainSvc,
     }
+}
+
+type ImportedData struct {
+    User           models.User
+    MedicalRecord  models.RecordKesehatan
+    HasMedicalData bool
 }
 
 func (h *AdminHandler) GetAllUsers() gin.HandlerFunc {
@@ -47,6 +56,13 @@ func (h *AdminHandler) GetAllUsers() gin.HandlerFunc {
     }
 }
 
+func truncateString(s string, maxLen int) string {
+    if len(s) > maxLen {
+        return s[:maxLen]
+    }
+    return s
+}
+
 func (h *AdminHandler) ImportUsersFromCSV() gin.HandlerFunc {
     return func(c *gin.Context) {
         file, err := c.FormFile("file")
@@ -69,7 +85,8 @@ func (h *AdminHandler) ImportUsersFromCSV() gin.HandlerFunc {
         defer openedFile.Close()
 
         reader := csv.NewReader(openedFile)
-        _, err = reader.Read()
+        
+        headers, err := reader.Read()
         if err != nil {
             c.JSON(http.StatusBadRequest, gin.H{
                 "error": "Invalid CSV format",
@@ -78,73 +95,141 @@ func (h *AdminHandler) ImportUsersFromCSV() gin.HandlerFunc {
             return
         }
 
+        columnMap := make(map[string]int)
+        for i, header := range headers {
+            columnMap[header] = i
+        }
+
+        requiredColumns := []string{"NIK", "NamaLengkap", "NoTelp", "Password"}
+        for _, col := range requiredColumns {
+            if _, exists := columnMap[col]; !exists {
+                c.JSON(http.StatusBadRequest, gin.H{
+                    "error": "Missing required column",
+                    "details": fmt.Sprintf("Column %s is required", col),
+                })
+                return
+            }
+        }
+
         var successCount, errorCount int
         var errors []string
 
-        tx := h.db.Begin()
-
         for {
             record, err := reader.Read()
+            if err == io.EOF {
+                break
+            }
             if err != nil {
-                break 
+                errorCount++
+                errors = append(errors, fmt.Sprintf("Error reading row: %v", err))
+                continue
             }
 
-            // CSV format: NIK,NamaLengkap,NoTelp,Email,Password
-            if len(record) < 5 {
+            tx := h.db.Begin()
+            if tx.Error != nil {
                 errorCount++
-                errors = append(errors, "Invalid row format")
+                errors = append(errors, fmt.Sprintf("Failed to begin transaction: %v", tx.Error))
                 continue
             }
 
             user := models.User{
-                NIK:         record[0],
-                NamaLengkap: record[1],
-                NoTelp:     record[2],
-                Email:      &record[3],
-                Password:   record[4],
-            }
-
-            var existingUser models.User
-            if err := h.db.Where("nik = ?", user.NIK).First(&existingUser).Error; err == nil {
-                errorCount++
-                errors = append(errors, fmt.Sprintf("User with NIK %s already exists", user.NIK))
-                continue
+                NIK:         truncateString(record[columnMap["NIK"]], 16),
+                NamaLengkap: truncateString(record[columnMap["NamaLengkap"]], 255),
+                NoTelp:     truncateString(record[columnMap["NoTelp"]], 20),
+                Password:   record[columnMap["Password"]],
             }
 
             if err := tx.Create(&user).Error; err != nil {
+                if rbErr := tx.Rollback().Error; rbErr != nil {
+                    errors = append(errors, fmt.Sprintf("Rollback failed: %v", rbErr))
+                }
                 errorCount++
                 errors = append(errors, fmt.Sprintf("Failed to create user %s: %v", user.NIK, err))
                 continue
             }
 
-            userHash := calculateUserHash(&user)
-            if err := h.blockchainSvc.SaveUserRegistration(c.Request.Context(), user.NIK, userHash); err != nil {
+            if sepIdx, exists := columnMap["NoSEP"]; exists && sepIdx < len(record) && record[sepIdx] != "" {
+                medRecord := models.RecordKesehatan{
+                    NoSEP:          truncateString(record[columnMap["NoSEP"]], 20),
+                    UserNIK:        user.NIK,
+                    JenisRawat:     models.JenisRawat(record[columnMap["JenisRawat"]]),
+                    DiagnosaAwal:   record[columnMap["DiagnosaAwal"]], 
+                    DiagnosaPrimer: record[columnMap["DiagnosaPrimer"]], 
+                    IcdX:           truncateString(record[columnMap["IcdX"]], 10),
+                    Tindakan:       record[columnMap["Tindakan"]], 
+                    TanggalMasuk:   time.Now(),
+                }
+
+                recordHash, err := h.blockchainSvc.CreateRecordHash(&medRecord)
+                if err != nil {
+                    if rbErr := tx.Rollback().Error; rbErr != nil {
+                        errors = append(errors, fmt.Sprintf("Rollback failed: %v", rbErr))
+                    }
+                    errorCount++
+                    errors = append(errors, fmt.Sprintf("Failed to create hash for medical record: %v", err))
+                    continue
+                }
+
+                medRecord.HashCurrent = truncateString(strings.TrimPrefix(recordHash, "0x"), 64)
+
+                if err := tx.Create(&medRecord).Error; err != nil {
+                    if rbErr := tx.Rollback().Error; rbErr != nil {
+                        errors = append(errors, fmt.Sprintf("Rollback failed: %v", rbErr))
+                    }
+                    errorCount++
+                    errors = append(errors, fmt.Sprintf("Failed to create medical record for user %s: %v", user.NIK, err))
+                    continue
+                }
+
+                if err := h.blockchainSvc.SaveMedicalRecord(c.Request.Context(), &medRecord); err != nil {
+                    if rbErr := tx.Rollback().Error; rbErr != nil {
+                        errors = append(errors, fmt.Sprintf("Rollback failed: %v", rbErr))
+                    }
+                    errorCount++
+                    errors = append(errors, fmt.Sprintf("Failed to save medical record to blockchain: %v", err))
+                    continue
+                }
+            }
+
+            userHash, err := h.blockchainSvc.CreateUserHash(&user)
+            if err != nil {
+                if rbErr := tx.Rollback().Error; rbErr != nil {
+                    errors = append(errors, fmt.Sprintf("Rollback failed: %v", rbErr))
+                }
+                errorCount++
+                errors = append(errors, fmt.Sprintf("Failed to create hash for user %s: %v", user.NIK, err))
+                continue
+            }
+
+            formattedUserHash := truncateString(strings.TrimPrefix(userHash, "0x"), 64)
+
+            if err := h.blockchainSvc.SaveUserRegistration(c.Request.Context(), user.NIK, formattedUserHash); err != nil {
+                if rbErr := tx.Rollback().Error; rbErr != nil {
+                    errors = append(errors, fmt.Sprintf("Rollback failed: %v", rbErr))
+                }
                 errorCount++
                 errors = append(errors, fmt.Sprintf("Failed to save user %s to blockchain: %v", user.NIK, err))
+                continue
+            }
+
+            if err := tx.Commit().Error; err != nil {
+                if rbErr := tx.Rollback().Error; rbErr != nil {
+                    errors = append(errors, fmt.Sprintf("Rollback failed: %v", rbErr))
+                }
+                errorCount++
+                errors = append(errors, fmt.Sprintf("Failed to commit transaction for user %s: %v", user.NIK, err))
                 continue
             }
 
             successCount++
         }
 
-        if errorCount > 0 {
-            tx.Rollback()
-            c.JSON(http.StatusBadRequest, gin.H{
-                "error": "Some users failed to import",
-                "details": gin.H{
-                    "success_count": successCount,
-                    "error_count":   errorCount,
-                    "errors":        errors,
-                },
-            })
-            return
-        }
-
-        tx.Commit()
         c.JSON(http.StatusOK, gin.H{
-            "message": "Users imported successfully",
+            "message": "Import process completed",
             "details": gin.H{
-                "total_imported": successCount,
+                "success_count": successCount,
+                "error_count":   errorCount,
+                "errors":        errors,
             },
         })
     }
