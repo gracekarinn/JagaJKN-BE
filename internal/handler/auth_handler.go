@@ -141,7 +141,6 @@ func (h *AuthHandler) Login() gin.HandlerFunc {
         cfg := c.MustGet("config").(*config.Config)
         token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
             "nik": user.NIK,
-            "role": string(user.Role), 
             "exp": time.Now().Add(time.Hour * 24).Unix(),
         })
 
@@ -162,7 +161,6 @@ func (h *AuthHandler) Login() gin.HandlerFunc {
 
 
 func calculateUserHash(user *models.User) string {
-    // Create consistent data string
     data := fmt.Sprintf("%s:%s:%s", 
         user.NIK,
         user.NamaLengkap,
@@ -174,7 +172,6 @@ func calculateUserHash(user *models.User) string {
     
     log.Printf("Calculating hash for data: %s", data)
     
-    // Use Keccak256 for consistency with Solidity
     hash := crypto.Keccak256([]byte(data))
     hashStr := hex.EncodeToString(hash)
     
@@ -194,7 +191,6 @@ func (h *AuthHandler) CheckUserRegistration() gin.HandlerFunc {
 
         log.Printf("Checking NIK: %s", nik)
 
-        // Get user from database
         var user models.User
         if err := h.db.Where("nik = ?", nik).First(&user).Error; err != nil {
             log.Printf("User not found in database: %v", err)
@@ -204,15 +200,12 @@ func (h *AuthHandler) CheckUserRegistration() gin.HandlerFunc {
 
         log.Printf("User found in database: %s", user.NamaLengkap)
 
-        // Calculate hash
         userHash := calculateUserHash(&user)
         log.Printf("Calculated user hash: %s", userHash)
 
-        // Convert string hash to bytes32
         var hashBytes [32]byte
         copy(hashBytes[:], []byte(userHash))
 
-        // Check blockchain registration with detailed logging
         opts := &bind.CallOpts{
             Context: c.Request.Context(),
         }
@@ -237,7 +230,6 @@ func (h *AuthHandler) CheckUserRegistration() gin.HandlerFunc {
 
         log.Printf("Blockchain registration status: %v", isRegistered)
 
-        // If registered, verify hash
         var verificationStatus *bool
         if isRegistered {
             verified, err := contract.VerifyUser(opts, nik, hashBytes)
@@ -287,6 +279,89 @@ func (h *AuthHandler) VerifyContractStatus() gin.HandlerFunc {
         c.JSON(http.StatusOK, gin.H{
             "status": status,
             "message": "Contract status verified successfully",
+        })
+    }
+}
+
+func (h *AuthHandler) FaskesLogin() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        var input models.FaskesLoginInput
+        if err := c.ShouldBindJSON(&input); err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{
+                "error": "Invalid input",
+                "details": err.Error(),
+            })
+            return
+        }
+
+        var faskes models.Faskes
+        if err := h.db.Where("kode_faskes = ?", input.KodeFaskes).First(&faskes).Error; err != nil {
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+            return
+        }
+
+        if err := faskes.CheckPassword(input.Password); err != nil {
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+            return
+        }
+
+        cfg := c.MustGet("config").(*config.Config)
+        token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+            "kode_faskes": faskes.KodeFaskes,
+            "exp": time.Now().Add(time.Hour * 24).Unix(),
+        })
+
+        tokenString, err := token.SignedString([]byte(cfg.JWTSecret))
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create token"})
+            return
+        }
+
+        c.JSON(http.StatusOK, gin.H{
+            "token": tokenString,
+            "faskes": faskes.ToJSON(),
+        })
+    }
+}
+
+func (h *AuthHandler) AdminLogin() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        var input models.AdminLoginInput
+        if err := c.ShouldBindJSON(&input); err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{
+                "error": "Invalid input",
+                "details": err.Error(),
+            })
+            return
+        }
+
+        var admin models.Admin
+        if err := h.db.Where("email = ?", input.Email).First(&admin).Error; err != nil {
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+            return
+        }
+
+        if err := admin.CheckPassword(input.Password); err != nil {
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+            return
+        }
+
+        cfg := c.MustGet("config").(*config.Config)
+        token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+            "admin_id": admin.ID,
+            "email": admin.Email,
+            "exp": time.Now().Add(time.Hour * 24).Unix(),
+        })
+
+        tokenString, err := token.SignedString([]byte(cfg.JWTSecret))
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create token"})
+            return
+        }
+
+        c.JSON(http.StatusOK, gin.H{
+            "token": tokenString,
+            "admin": admin.ToJSON(),
         })
     }
 }
