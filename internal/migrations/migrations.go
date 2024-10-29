@@ -50,6 +50,25 @@ func CreateEnumTypes(db *gorm.DB) error {
 	return nil
 }
 
+func AddRoleToUsers(db *gorm.DB) error {
+    if err := db.Exec(`DO $$ 
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+                CREATE TYPE user_role AS ENUM ('USER', 'ADMIN', 'FASKES');
+            END IF;
+        END
+        $$;`).Error; err != nil {
+        return err
+    }
+
+    if err := db.Exec(`ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS role user_role NOT NULL DEFAULT 'USER'::user_role`).Error; err != nil {
+        return err
+    }
+
+    return nil
+}
+
 
 func RunMigrations(db *gorm.DB) error {
 	log.Println("Starting database migrations...")
