@@ -41,7 +41,7 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, blockchainSvc *bService.Blockc
     authHandler := handler.NewAuthHandler(db, blockchainSvc)
     recordHandler := handler.NewRecordHandler(db, blockchainSvc)
     adminHandler := handler.NewAdminHandler(db, blockchainSvc)
-    // faskesHandler := handler.NewFaskesHandler(db, blockchainSvc)
+    faskesHandler := handler.NewFaskesHandler(db, blockchainSvc)
 
     r.GET("/health", func(c *gin.Context) {
         c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -84,8 +84,13 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, blockchainSvc *bService.Blockc
         faskesRoutes := api.Group("/faskes")
         faskesRoutes.Use(middleware.FaskesAuthMiddleware(cfg.JWTSecret))
         {
-            faskesRoutes.POST("/records", recordHandler.CreateRecord())
-            // faskesRoutes.GET("/records", recordHandler.GetFaskesRecords())
+            faskesRoutes.GET("/profile", faskesHandler.GetProfile())
+            faskesRoutes.PUT("/profile", faskesHandler.UpdateProfile())
+    
+            faskesRoutes.POST("/transfer", faskesHandler.InitiateTransfer())
+            faskesRoutes.GET("/transfers/pending", faskesHandler.GetPendingTransfers())
+            faskesRoutes.POST("/transfers/:transferId/accept", faskesHandler.AcceptTransfer())
+            faskesRoutes.GET("/transfers/history", faskesHandler.GetTransferHistory())
         }
     }
 
