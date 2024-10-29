@@ -141,6 +141,7 @@ func (h *AuthHandler) Login() gin.HandlerFunc {
         cfg := c.MustGet("config").(*config.Config)
         token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
             "nik": user.NIK,
+            "role": string(user.Role), 
             "exp": time.Now().Add(time.Hour * 24).Unix(),
         })
 
