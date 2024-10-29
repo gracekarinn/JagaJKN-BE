@@ -102,7 +102,6 @@ func (h *AdminHandler) ImportUsersFromCSV() gin.HandlerFunc {
                 NoTelp:     record[2],
                 Email:      &record[3],
                 Password:   record[4],
-                Role:       models.RoleUser, 
             }
 
             var existingUser models.User
