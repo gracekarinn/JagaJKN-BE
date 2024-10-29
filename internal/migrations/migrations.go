@@ -70,10 +70,30 @@ func RunMigrations(db *gorm.DB) error {
         &models.Admin{},
         &models.RecordKesehatan{},
         &models.ResepObat{},
-        &models.Faskes{},  
+        &models.Faskes{},
     )
     if err != nil {
         return fmt.Errorf("error running migrations: %v", err)
+    }
+
+    var admin models.Admin
+    if db.Where("email = ?", "admin@jagajkn.com").First(&admin).Error != nil {
+        log.Println("Creating default admin...")
+        defaultAdmin := models.Admin{
+            Email:    "admin@jagajkn.com",
+            Password: "test123",
+        }
+        
+        if err := defaultAdmin.HashPassword(); err != nil {
+            log.Printf("Error hashing password: %v", err)
+            return fmt.Errorf("error hashing admin password: %v", err)
+        }
+        
+        if err := db.Create(&defaultAdmin).Error; err != nil {
+            log.Printf("Error creating admin: %v", err)
+            return fmt.Errorf("error creating default admin: %v", err)
+        }
+        log.Println("Default admin account created successfully")
     }
 
     log.Println("Database migrations completed successfully")
