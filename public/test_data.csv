@@ -1,0 +1,3 @@
+NIK,NamaLengkap,NoTelp,Email,Password,NoKartuJKN,Alamat,NoSEP,JenisRawat,DiagnosaAwal,DiagnosaPrimer,IcdX,Tindakan
+1234567890123456,John Doe,081234567890,john@example.com,password123,98765432100,Jakarta Selatan,SEP001,RAWAT_JALAN,Initial fever symptoms with cough,Influenza Type A confirmed,J11,Prescribed antiviral medication and rest
+9876543210987654,Jane Smith,087654321098,jane@example.com,pass456789,12345678900,Jakarta Utara,SEP002,RAWAT_INAP,Severe headache with aura,Chronic migraine with complications,G43,Administered pain medication and 24-hour observation
