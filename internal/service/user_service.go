@@ -55,6 +55,7 @@ func (s *UserService) Login(input *models.UserLoginInput) (string, error) {
 
     claims := jwt.MapClaims{
         "user_nik": user.NIK,
+        "role": string(user.Role),  
         "exp":      time.Now().Add(time.Hour * 24).Unix(),
     }
 
