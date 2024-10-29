@@ -5,6 +5,7 @@ import (
 
 	bService "jagajkn/internal/blockchain/service"
 	"jagajkn/internal/config"
+	"jagajkn/internal/migrations"
 	"jagajkn/internal/router"
 )
 
@@ -18,6 +19,11 @@ func main() {
     if err != nil {
         log.Fatalf("Failed to connect to database: %v", err)
     }
+
+    if err := migrations.RunMigrations(db); err != nil {
+        log.Fatalf("Failed to run migrations: %v", err)
+    }
+
 
     blockchainSvc, err := bService.NewBlockchainService(cfg.GetBlockchainConfig())
     if err != nil {
