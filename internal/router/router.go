@@ -52,8 +52,7 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, blockchainSvc *bService.Blockc
         auth.POST("/register", authHandler.Register())
         auth.POST("/login", authHandler.Login())
         
-        auth.POST("/admin/login", authHandler.AdminLogin())
-        
+        auth.POST("/admin/login", authHandler.AdminLogin())   
         auth.POST("/faskes/login", authHandler.FaskesLogin())
         
         auth.GET("/check-registration", authHandler.CheckUserRegistration())
@@ -86,7 +85,11 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, blockchainSvc *bService.Blockc
         {
             faskesRoutes.GET("/profile", faskesHandler.GetProfile())
             faskesRoutes.PUT("/profile", faskesHandler.UpdateProfile())
-    
+
+            faskesRoutes.POST("/records", recordHandler.CreateRecord())
+            faskesRoutes.GET("/records", recordHandler.GetFaskesRecords())
+            faskesRoutes.GET("/records/:noSEP", recordHandler.GetRecord())
+
             faskesRoutes.POST("/transfer", faskesHandler.InitiateTransfer())
             faskesRoutes.GET("/transfers/pending", faskesHandler.GetPendingTransfers())
             faskesRoutes.POST("/transfers/:transferId/accept", faskesHandler.AcceptTransfer())
