@@ -6,7 +6,7 @@ module.exports = {
   networks: {
     sepolia: {
       url: "https://rpc.ankr.com/eth_sepolia",
-      accounts: [process.env.PRIVATE_KEY],
+      accounts: [process.env.BLOCKCHAIN_PRIVATE_KEY],
     },
     hardhat: {
       chainId: 1337,
