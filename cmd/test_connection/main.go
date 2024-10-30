@@ -8,15 +8,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/joho/godotenv"
 )
 
 func main() {
-    // Load .env file
-    if err := godotenv.Load(); err != nil {
-        log.Fatal("Error loading .env file")
-    }
-
     // Get and verify environment variables
     providerURL := os.Getenv("BLOCKCHAIN_PROVIDER")
     privateKey := os.Getenv("BLOCKCHAIN_PRIVATE_KEY")
