@@ -49,7 +49,7 @@ func UserAuthMiddleware(jwtSecret string) gin.HandlerFunc {
 
         if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
             if nik, exists := claims["nik"].(string); exists {
-                c.Set("userNIK", nik)
+                c.Set("user_nik", nik)
                 c.Next()
                 return
             }
