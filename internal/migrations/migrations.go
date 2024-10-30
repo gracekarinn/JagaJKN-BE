@@ -4,8 +4,14 @@ import (
 	"fmt"
 	"jagajkn/internal/models"
 	"log"
+	"os"
 
 	"gorm.io/gorm"
+)
+
+var (
+    infoLog  = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime)
+    errorLog = log.New(os.Stderr, "ERROR: ", log.Ldate|log.Ltime)
 )
 
 func CreateEnumTypes(db *gorm.DB) error {
@@ -67,8 +73,6 @@ func CreateEnumTypes(db *gorm.DB) error {
 
 
 func RunMigrations(db *gorm.DB) error {
-    log.Println("Starting database migrations...")
-
     // db.Exec("DROP TABLE IF EXISTS rekam_medis_transfers CASCADE")
     // db.Exec("DROP TABLE IF EXISTS resep_obat CASCADE")
     // db.Exec("DROP TABLE IF EXISTS record_kesehatans CASCADE")
@@ -83,37 +87,23 @@ func RunMigrations(db *gorm.DB) error {
     // db.Exec("DROP TYPE IF EXISTS gender CASCADE")
     // db.Exec("DROP TYPE IF EXISTS kelas_bpjs CASCADE")
 
-    if err := CreateEnumTypes(db); err != nil {
-        return fmt.Errorf("error creating enum types: %v", err)
-    }
-
-    if err := db.AutoMigrate(&models.Admin{}); err != nil {
-        return fmt.Errorf("error migrating admin: %v", err)
-    }
-
-    if err := db.AutoMigrate(&models.User{}); err != nil {
-        return fmt.Errorf("error migrating user: %v", err)
-    }
-
-    if err := db.AutoMigrate(&models.Faskes{}); err != nil {
-        return fmt.Errorf("error migrating faskes: %v", err)
-    }
-
-    if err := db.AutoMigrate(&models.RecordKesehatan{}); err != nil {
-        return fmt.Errorf("error migrating record kesehatan: %v", err)
-    }
-
-    if err := db.AutoMigrate(&models.ResepObat{}); err != nil {
-        return fmt.Errorf("error migrating resep obat: %v", err)
-    }
-
-    if err := db.AutoMigrate(&models.RekamMedisTransfer{}); err != nil {
-        return fmt.Errorf("error migrating rekam medis transfer: %v", err)
+    for _, model := range []interface{}{
+        &models.Admin{},
+        &models.User{},
+        &models.Faskes{},
+        &models.RecordKesehatan{},
+        &models.ResepObat{},
+        &models.RekamMedisTransfer{},
+    } {
+        if err := db.AutoMigrate(model); err != nil {
+            return fmt.Errorf("error migrating %T: %v", model, err)
+        }
+        infoLog.Printf("✅ Successfully migrated %T", model)
     }
 
     var admin models.Admin
     if db.Where("email = ?", "admin@jagajkn.com").First(&admin).Error != nil {
-        log.Println("Creating default admin...")
+        infoLog.Println("Creating default admin account...")
         defaultAdmin := models.Admin{
             Email:    "admin@jagajkn.com",
             Password: "test123",
@@ -124,9 +114,8 @@ func RunMigrations(db *gorm.DB) error {
         if err := db.Create(&defaultAdmin).Error; err != nil {
             return fmt.Errorf("error creating default admin: %v", err)
         }
-        log.Println("Default admin account created successfully")
+        infoLog.Println("✅ Default admin account created successfully")
     }
 
-    log.Println("Database migrations completed successfully")
     return nil
 }
