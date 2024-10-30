@@ -5,18 +5,17 @@ import (
 )
 
 type RekamMedisTransfer struct {
-    ID                string           `gorm:"type:varchar(50);primary_key" json:"id"`
-    NoSEP             string           `gorm:"type:varchar(20);not null" json:"noSEP"`
-    RecordKesehatan   RecordKesehatan  `gorm:"foreignKey:NoSEP;references:NoSEP" json:"recordKesehatan"`
-    SourceFaskes      string           `gorm:"type:varchar(20);not null" json:"sourceFaskes"`
-    DestinationFaskes string           `gorm:"type:varchar(20);not null" json:"destinationFaskes"`
-    TransferReason    string           `gorm:"type:text;not null" json:"transferReason"`
-    TransferTime      time.Time        `gorm:"not null" json:"transferTime"`
-    Status           string           `gorm:"type:varchar(20);not null" json:"status"` 
+    ID                string           `gorm:"type:varchar(50);primaryKey" json:"id"`
+    NoSEP             string           `gorm:"type:varchar(20)" json:"noSEP"`
+    RecordKesehatan   *RecordKesehatan `gorm:"foreignKey:NoSEP;references:NoSEP" json:"recordKesehatan"`
+    SourceFaskes      string           `gorm:"type:varchar(20)" json:"sourceFaskes"`
+    DestinationFaskes string           `gorm:"type:varchar(20)" json:"destinationFaskes"`
+    TransferReason    string           `gorm:"type:text" json:"transferReason"`
+    TransferTime      time.Time        `json:"transferTime"`
+    Status           string           `gorm:"type:status_transfer" json:"status"`
     CreatedAt        time.Time        `json:"createdAt"`
     UpdatedAt        time.Time        `json:"updatedAt"`
 }
-
 func (t *RekamMedisTransfer) ToJSON() map[string]interface{} {
     return map[string]interface{}{
         "id":                t.ID,
