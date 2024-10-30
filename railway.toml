@@ -6,8 +6,7 @@ dockerfilePath = "Dockerfile"
 startCommand = "./main"
 healthcheckPath = "/health"
 healthcheckTimeout = 100
-restartPolicyType = "on-failure"
-restartPolicyMaxRetries = 5
+restartPolicy = "always"
 
 [service]
 internal_port = 8080
