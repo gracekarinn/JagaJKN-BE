@@ -1,4 +1,4 @@
-FROM golang:1.21-alpine
+FROM golang:1.23-alpine
 
 WORKDIR /app
 
@@ -7,7 +7,8 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 go build -o main ./cmd/blockchain_test/main.go
+RUN CGO_ENABLED=0 go build -o main ./cmd/main.go
 
 EXPOSE 8080
+
 CMD ["./main"]
