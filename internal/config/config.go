@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -25,10 +24,6 @@ type BlockchainConfig struct {
 }
 
 func LoadConfig() (*Config, error) {
-    if err := godotenv.Load(); err != nil {
-        return nil, fmt.Errorf("error loading .env file: %v", err)
-    }
-
     config := &Config{
         DatabaseURL:    getEnvOrPanic("DATABASE_URL"),
         ServerPort:     getEnvOrDefault("SERVER_PORT", "8080"),
