@@ -3,6 +3,7 @@ module jagajkn
 go 1.23.2
 
 require (
+	github.com/ethereum/go-ethereum v1.14.11
 	github.com/golang-jwt/jwt/v4 v4.5.0
 	golang.org/x/crypto v0.28.0
 	gorm.io/driver/postgres v1.5.9
@@ -25,7 +26,6 @@ require (
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/ethereum/c-kzg-4844 v1.0.0 // indirect
-	github.com/ethereum/go-ethereum v1.14.11 // indirect
 	github.com/ethereum/go-verkle v0.1.1-0.20240829091221-dffa7562dbe9 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.3 // indirect
@@ -44,7 +44,6 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
-	github.com/kr/text v0.2.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
