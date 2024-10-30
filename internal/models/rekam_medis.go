@@ -24,6 +24,7 @@ const (
 // Untuk membuat record kesehatan baru, kita memerlukan input dari pengguna
 type RecordInput struct {
 	NoSEP          string     `json:"noSEP" binding:"required"`
+	UserNIK        string     `json:"userNIK" binding:"required"`
 	JenisRawat     JenisRawat `json:"jenisRawat" binding:"required"`
 	DiagnosaAwal   string     `json:"diagnosaAwal" binding:"required"`
 	DiagnosaPrimer string     `json:"diagnosaPrimer" binding:"required"`
@@ -34,6 +35,7 @@ type RecordInput struct {
 // Rekor kesehatan yang akan disimpan dalam blockchain
 type RecordKesehatan struct {
     NoSEP            string        `gorm:"type:varchar(20);primary_key" json:"noSEP"`
+	FaskesKode       string        `gorm:"type:varchar(20);not null" json:"faskesKode"`
     CreatedAt        time.Time     `json:"createdAt"`
     UpdatedAt        time.Time     `json:"updatedAt"`
     UserNIK          string        `gorm:"type:varchar(16);not null" json:"userNIK"`
