@@ -120,7 +120,7 @@ func (h *FaskesHandler) InitiateTransfer() gin.HandlerFunc {
         transfer := models.RekamMedisTransfer{
             ID:               fmt.Sprintf("TRF-%s-%s", record.NoSEP, time.Now().Format("20060102150405")),
             NoSEP:           record.NoSEP,
-            RecordKesehatan: record,
+            RecordKesehatan: &record,
             SourceFaskes:    sourceFaskes.(string),
             DestinationFaskes: input.DestinationCode,
             TransferReason:   input.Reason,
