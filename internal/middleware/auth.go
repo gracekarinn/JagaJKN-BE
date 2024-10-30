@@ -105,36 +105,44 @@ func AdminAuthMiddleware(jwtSecret string) gin.HandlerFunc {
 
 func FaskesAuthMiddleware(jwtSecret string) gin.HandlerFunc {
     return func(c *gin.Context) {
-        tokenString, err := validateBearerToken(c)
-        if err != nil {
-            c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+        authHeader := c.GetHeader("Authorization")
+        if authHeader == "" {
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
             c.Abort()
             return
         }
 
-        token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-            if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-                return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-            }
+        bearerToken := strings.Split(authHeader, " ")
+        if len(bearerToken) != 2 {
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token format"})
+            c.Abort()
+            return
+        }
+
+        tokenString := bearerToken[1]
+
+        claims := jwt.MapClaims{}
+        token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
             return []byte(jwtSecret), nil
         })
 
-        if err != nil {
-            log.Printf("Error parsing token: %v", err)
+        if err != nil || !token.Valid {
             c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
             c.Abort()
             return
         }
 
-        if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-            if kodeFaskes, exists := claims["kode_faskes"].(string); exists {
-                c.Set("kodeFaskes", kodeFaskes)
-                c.Next()
-                return
-            }
-            log.Printf("Kode Faskes not found in claims: %+v", claims)
+        faskesKode, exists := claims["kode_faskes"]
+        if !exists {
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
+            c.Abort()
+            return
         }
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
-        c.Abort()
+
+        c.Set("faskes_kode", faskesKode)
+
+        fmt.Printf("Faskes code set in context: %v\n", faskesKode)
+
+        c.Next()
     }
 }
