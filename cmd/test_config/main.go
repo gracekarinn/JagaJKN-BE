@@ -5,15 +5,9 @@ import (
 	"log"
 
 	"jagajkn/internal/config"
-
-	"github.com/joho/godotenv"
 )
 
 func main() {
-    if err := godotenv.Load(); err != nil {
-        log.Fatal("Error loading .env file")
-    }
-
     cfg, err := config.LoadConfig()
     if err != nil {
         log.Fatalf("Failed to load config: %v", err)
