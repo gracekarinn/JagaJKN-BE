@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"time"
@@ -86,14 +85,5 @@ func main() {
         log.Fatal("Contract instance is nil")
     }
 
-    // Update .env
-    env, err := os.OpenFile(".env", os.O_APPEND|os.O_WRONLY, 0644)
-    if err != nil {
-        log.Fatal(err)
-    }
-    if _, err := env.WriteString(fmt.Sprintf("\nCONTRACT_ADDRESS=%s", address.Hex())); err != nil {
-        log.Fatal(err)
-    }
-    log.Println("Contract address saved to .env")
     log.Println("Deployment successful!")
 }
