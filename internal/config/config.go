@@ -13,8 +13,8 @@ import (
 )
 
 type Config struct {
-    DatabaseURL      string
-    ServerPort       string
+    DatabaseURL     string
+    ServerPort      string
     JWTSecret       string
     AllowedOrigin   string
     BlockchainConfig *BlockchainConfig
@@ -34,8 +34,8 @@ func LoadConfig() (*Config, error) {
     }
 
     config := &Config{
-        DatabaseURL:    os.Getenv("DATABASE_URL"),
-        ServerPort:     getEnvOrDefault("PORT", "8080"),
+        DatabaseURL:   os.Getenv("DATABASE_URL"),
+        ServerPort:    getEnvOrDefault("PORT", "8080"),
         JWTSecret:     os.Getenv("JWT_SECRET"),
         AllowedOrigin: getEnvOrDefault("ALLOWED_ORIGIN", "*"),
         BlockchainConfig: &BlockchainConfig{
@@ -52,9 +52,8 @@ func LoadConfig() (*Config, error) {
     return config, nil
 }
 
-
 func (c *Config) validate() error {
-    missingVars := []string{}
+    var missingVars []string
 
     if c.DatabaseURL == "" {
         missingVars = append(missingVars, "DATABASE_URL")
@@ -72,7 +71,6 @@ func (c *Config) validate() error {
     if len(missingVars) > 0 {
         return fmt.Errorf("missing required environment variables: %v", missingVars)
     }
-
     return nil
 }
 
@@ -96,11 +94,11 @@ func (c *Config) ConnectDB() (*gorm.DB, error) {
         db, err = gorm.Open(postgres.Open(c.DatabaseURL), &gorm.Config{
             Logger: newLogger,
         })
-
+        
         if err == nil {
             break
         }
-
+        
         log.Printf("Failed to connect to database (attempt %d/%d): %v\n", i+1, maxRetries, err)
         if i < maxRetries-1 {
             time.Sleep(retryDelay)
