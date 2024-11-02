@@ -10,97 +10,90 @@ import (
 )
 
 var (
-    infoLog  = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime)
-    errorLog = log.New(os.Stderr, "ERROR: ", log.Ldate|log.Ltime)
+    infoLog = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime)
 )
 
+// EnumDefinition represents a PostgreSQL enum type
+type EnumDefinition struct {
+    name    string
+    values  []string
+}
+
+var enums = []EnumDefinition{
+    {
+        name: "gender",
+        values: []string{"LAKI_LAKI", "PEREMPUAN"},
+    },
+    {
+        name: "kelas_bpjs",
+        values: []string{"KELAS_1", "KELAS_2", "KELAS_3"},
+    },
+    {
+        name: "jenis_rawat",
+        values: []string{"RAWAT_JALAN", "RAWAT_INAP", "RAWAT_DARURAT"},
+    },
+    {
+        name: "status_pulang",
+        values: []string{"SEMBUH", "RUJUK", "PULANG_PAKSA", "MENINGGAL"},
+    },
+    {
+        name: "tingkat_faskes",
+        values: []string{"TINGKAT_1", "TINGKAT_2", "TINGKAT_3"},
+    },
+    {
+        name: "status_transfer",
+        values: []string{"PENDING", "ACCEPTED", "REJECTED"},
+    },
+}
+
 func CreateEnumTypes(db *gorm.DB) error {
-    // Jenis kelamin
-    if err := db.Exec(`DO $$ BEGIN
-        CREATE TYPE gender AS ENUM ('LAKI_LAKI', 'PEREMPUAN');
-        EXCEPTION
-        WHEN duplicate_object THEN null;
-        END $$;`).Error; err != nil {
-        return fmt.Errorf("error creating gender enum: %v", err)
+    for _, enum := range enums {
+        query := fmt.Sprintf(`DO $$ 
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = '%s') THEN
+                CREATE TYPE %s AS ENUM ('%s');
+            END IF;
+        END $$;`, enum.name, enum.name, "', '"+join(enum.values, "', '"))
+
+        if err := db.Exec(query).Error; err != nil {
+            return fmt.Errorf("error creating %s enum: %v", enum.name, err)
+        }
+        infoLog.Printf("✅ Created/Verified enum: %s", enum.name)
+    }
+    return nil
+}
+
+func dropExistingObjects(db *gorm.DB) error {
+    // Tables to drop
+    tables := []string{
+        "rekam_medis_transfers",
+        "resep_obat",
+        "record_kesehatans",
+        "faskes",
+        "users",
+        "admins",
     }
 
-    // Kelas BPJS
-    if err := db.Exec(`DO $$ BEGIN
-        CREATE TYPE kelas_bpjs AS ENUM ('KELAS_1', 'KELAS_2', 'KELAS_3');
-        EXCEPTION
-        WHEN duplicate_object THEN null;
-        END $$;`).Error; err != nil {
-        return fmt.Errorf("error creating kelas_bpjs enum: %v", err)
+    // Drop tables
+    for _, table := range tables {
+        if err := db.Exec("DROP TABLE IF EXISTS " + table + " CASCADE").Error; err != nil {
+            return fmt.Errorf("error dropping table %s: %v", table, err)
+        }
+        infoLog.Printf("Dropped table: %s", table)
     }
 
-    // Jenis rawat
-    if err := db.Exec(`DO $$ BEGIN
-        CREATE TYPE jenis_rawat AS ENUM ('RAWAT_JALAN', 'RAWAT_INAP', 'RAWAT_DARURAT');
-        EXCEPTION
-        WHEN duplicate_object THEN null;
-        END $$;`).Error; err != nil {
-        return fmt.Errorf("error creating jenis_rawat enum: %v", err)
-    }
-
-    // Status pulang
-    if err := db.Exec(`DO $$ BEGIN
-        CREATE TYPE status_pulang AS ENUM ('SEMBUH', 'RUJUK', 'PULANG_PAKSA', 'MENINGGAL');
-        EXCEPTION
-        WHEN duplicate_object THEN null;
-        END $$;`).Error; err != nil {
-        return fmt.Errorf("error creating status_pulang enum: %v", err)
-    }
-
-    // Add tingkat_faskes enum
-    if err := db.Exec(`DO $$ BEGIN
-        CREATE TYPE tingkat_faskes AS ENUM ('TINGKAT_1', 'TINGKAT_2', 'TINGKAT_3');
-        EXCEPTION
-        WHEN duplicate_object THEN null;
-        END $$;`).Error; err != nil {
-        return fmt.Errorf("error creating tingkat_faskes enum: %v", err)
-    }
-
-    if err := db.Exec(`DO $$ BEGIN
-        CREATE TYPE status_transfer AS ENUM ('PENDING', 'ACCEPTED', 'REJECTED');
-        EXCEPTION
-        WHEN duplicate_object THEN null;
-        END $$;`).Error; err != nil {
-        return fmt.Errorf("error creating status_transfer enum: %v", err)
+    // Drop enum types
+    for _, enum := range enums {
+        if err := db.Exec("DROP TYPE IF EXISTS " + enum.name + " CASCADE").Error; err != nil {
+            return fmt.Errorf("error dropping enum %s: %v", enum.name, err)
+        }
+        infoLog.Printf("Dropped enum: %s", enum.name)
     }
 
     return nil
 }
 
-
-func RunMigrations(db *gorm.DB) error {
-    // db.Exec("DROP TABLE IF EXISTS rekam_medis_transfers CASCADE")
-    // db.Exec("DROP TABLE IF EXISTS resep_obat CASCADE")
-    // db.Exec("DROP TABLE IF EXISTS record_kesehatans CASCADE")
-    // db.Exec("DROP TABLE IF EXISTS faskes CASCADE")
-    // db.Exec("DROP TABLE IF EXISTS users CASCADE")
-    // db.Exec("DROP TABLE IF EXISTS admins CASCADE")
-
-    // db.Exec("DROP TYPE IF EXISTS status_transfer CASCADE")
-    // db.Exec("DROP TYPE IF EXISTS tingkat_faskes CASCADE")
-    // db.Exec("DROP TYPE IF EXISTS jenis_rawat CASCADE")
-    // db.Exec("DROP TYPE IF EXISTS status_pulang CASCADE")
-    // db.Exec("DROP TYPE IF EXISTS gender CASCADE")
-    // db.Exec("DROP TYPE IF EXISTS kelas_bpjs CASCADE")
-
-    for _, model := range []interface{}{
-        &models.Admin{},
-        &models.User{},
-        &models.Faskes{},
-        &models.RecordKesehatan{},
-        &models.ResepObat{},
-        &models.RekamMedisTransfer{},
-    } {
-        if err := db.AutoMigrate(model); err != nil {
-            return fmt.Errorf("error migrating %T: %v", model, err)
-        }
-        infoLog.Printf("✅ Successfully migrated %T", model)
-    }
-
+func createDefaultAdmin(db *gorm.DB) error {
     var admin models.Admin
     if db.Where("email = ?", "admin@jagajkn.com").First(&admin).Error != nil {
         infoLog.Println("Creating default admin account...")
@@ -108,14 +101,70 @@ func RunMigrations(db *gorm.DB) error {
             Email:    "admin@jagajkn.com",
             Password: "test123",
         }
+
         if err := defaultAdmin.HashPassword(); err != nil {
             return fmt.Errorf("error hashing admin password: %v", err)
         }
+
         if err := db.Create(&defaultAdmin).Error; err != nil {
             return fmt.Errorf("error creating default admin: %v", err)
         }
+
         infoLog.Println("✅ Default admin account created successfully")
+    } else {
+        infoLog.Println("ℹ️ Default admin account already exists")
+    }
+    return nil
+}
+
+func RunMigrations(db *gorm.DB) error {
+    infoLog.Println("Starting database migrations...")
+
+    // Drop existing objects
+    if err := dropExistingObjects(db); err != nil {
+        return fmt.Errorf("error dropping existing objects: %v", err)
     }
 
+    // Create enum types
+    if err := CreateEnumTypes(db); err != nil {
+        return fmt.Errorf("error creating enum types: %v", err)
+    }
+
+    // Models to migrate
+    models := []interface{}{
+        &models.Admin{},
+        &models.User{},
+        &models.Faskes{},
+        &models.RecordKesehatan{},
+        &models.ResepObat{},
+        &models.RekamMedisTransfer{},
+    }
+
+    // Run migrations
+    for _, model := range models {
+        if err := db.AutoMigrate(model); err != nil {
+            return fmt.Errorf("error migrating %T: %v", model, err)
+        }
+        infoLog.Printf("✅ Successfully migrated %T", model)
+    }
+
+    // Create default admin account
+    if err := createDefaultAdmin(db); err != nil {
+        return fmt.Errorf("error creating default admin: %v", err)
+    }
+
+    infoLog.Println("✅ All migrations completed successfully!")
     return nil
+}
+
+// Helper function to join strings with a separator
+func join(strs []string, sep string) string {
+    if len(strs) == 0 {
+        return ""
+    }
+    result := strs[0]
+    for _, str := range strs[1:] {
+        result += sep + str
+    }
+    return result
 }
