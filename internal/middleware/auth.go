@@ -33,6 +33,8 @@ func UserAuthMiddleware(jwtSecret string) gin.HandlerFunc {
             return
         }
 
+        log.Printf("Token: %s", tokenString) // Log the token for debugging
+
         token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
             if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
                 return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -49,6 +51,7 @@ func UserAuthMiddleware(jwtSecret string) gin.HandlerFunc {
 
         if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
             if nik, exists := claims["nik"].(string); exists {
+                c.Set("claims", claims)
                 c.Set("user_nik", nik)
                 c.Next()
                 return
