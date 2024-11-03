@@ -253,20 +253,46 @@ func (h *AuthHandler) CheckUserRegistration() gin.HandlerFunc {
 
 func (h *AuthHandler) GetProfile() gin.HandlerFunc {
     return func(c *gin.Context) {
+        log.Println("GetProfile: Starting profile fetch...")
+
         nik, exists := c.Get("user_nik")
         if !exists {
-            c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+            log.Println("GetProfile: No user_nik found in context")
+            c.JSON(http.StatusUnauthorized, gin.H{
+                "status": "error",
+                "message": "Unauthorized access",
+            })
             return
         }
+
+        nikStr, ok := nik.(string)
+        if !ok {
+            log.Printf("GetProfile: Invalid NIK type in context: %T", nik)
+            c.JSON(http.StatusInternalServerError, gin.H{
+                "status": "error",
+                "message": "Invalid user identification",
+            })
+            return
+        }
+
+        log.Printf("GetProfile: Fetching user data for NIK: %s", nikStr)
 
         var user models.User
-        if err := h.db.Where("nik = ?", nik).First(&user).Error; err != nil {
-            log.Printf("User not found: %v", err)
-            c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+        if err := h.db.Where("nik = ?", nikStr).First(&user).Error; err != nil {
+            log.Printf("GetProfile: Database error: %v", err)
+            c.JSON(http.StatusNotFound, gin.H{
+                "status": "error",
+                "message": "User not found",
+            })
             return
         }
 
-        c.JSON(http.StatusOK, gin.H{"user": user.ToJSON()})
+        log.Printf("GetProfile: Successfully found user: %s", user.NamaLengkap)
+
+        c.JSON(http.StatusOK, gin.H{
+            "status": "success",
+            "user": user.ToJSON(),
+        })
     }
 }
 
