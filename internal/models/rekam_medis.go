@@ -83,6 +83,7 @@ func (r *RecordKesehatan) ToBlockchainRecord() map[string]interface{} {
 	return map[string]interface{}{
 		"noSEP":            r.NoSEP,
 		"userNIK":          r.UserNIK,
+		"user": r.User.ToJSON(),
 		"tanggalMasuk":     r.TanggalMasuk,
 		"tanggalKeluar":    r.TanggalKeluar,
 		"jenisRawat":       r.JenisRawat,
