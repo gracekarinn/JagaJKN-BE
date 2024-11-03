@@ -82,6 +82,7 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, blockchainSvc *bService.Blockc
         {
             userRoutes.GET("/records", recordHandler.GetUserRecords())
             userRoutes.GET("/records/:noSEP", recordHandler.GetRecord())
+            userRoutes.GET("/profile", authHandler.GetProfile())
         }
 
         adminRoutes := api.Group("/admin")
