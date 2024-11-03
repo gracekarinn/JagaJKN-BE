@@ -176,7 +176,14 @@ func (h *RecordHandler) GetUserRecords() gin.HandlerFunc {
 
         var response []map[string]interface{}
         for _, record := range records {
-            verified, _ := h.blockchainSvc.VerifyMedicalRecord(c.Request.Context(), &record)
+            verified, err := h.blockchainSvc.VerifyMedicalRecord(c.Request.Context(), &record)
+            if err != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{
+                    "error": "Failed to verify record",
+                    "details": err.Error(),
+                })
+                return
+            }
             recordData := record.ToBlockchainRecord()
             recordData["blockchainVerified"] = verified
             response = append(response, recordData)
