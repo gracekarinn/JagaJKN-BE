@@ -26,14 +26,22 @@ func validateBearerToken(c *gin.Context) (string, error) {
 
 func UserAuthMiddleware(jwtSecret string) gin.HandlerFunc {
     return func(c *gin.Context) {
+        if c.Request.Method == "OPTIONS" {
+            c.Next()
+            return
+        }
+
         tokenString, err := validateBearerToken(c)
         if err != nil {
-            c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+            c.JSON(http.StatusUnauthorized, gin.H{
+                "status": "error",
+                "message": err.Error(),
+            })
             c.Abort()
             return
         }
 
-        log.Printf("Token: %s", tokenString) 
+        log.Printf("Validating token: %s", tokenString) 
 
         token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
             if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -44,7 +52,10 @@ func UserAuthMiddleware(jwtSecret string) gin.HandlerFunc {
 
         if err != nil {
             log.Printf("Error parsing token: %v", err)
-            c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+            c.JSON(http.StatusUnauthorized, gin.H{
+                "status": "error",
+                "message": "Invalid token",
+            })
             c.Abort()
             return
         }
@@ -58,7 +69,11 @@ func UserAuthMiddleware(jwtSecret string) gin.HandlerFunc {
             }
             log.Printf("NIK not found in claims: %+v", claims)
         }
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
+        
+        c.JSON(http.StatusUnauthorized, gin.H{
+            "status": "error",
+            "message": "Invalid token claims",
+        })
         c.Abort()
     }
 }
