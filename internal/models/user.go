@@ -61,16 +61,40 @@ func (u *User) CheckPassword(password string) error {
 }
 
 func (u *User) ToJSON() map[string]interface{} {
-	return map[string]interface{}{
-		"nik":            u.NIK,
-		"namaLengkap":    u.NamaLengkap,
-		"noTelp":         u.NoTelp,
-		"email":          u.Email,
-		"noKartuJKN":     u.NoKartuJKN,
-		"jenisKelamin":   u.JenisKelamin,
-		"tanggalLahir":   u.TanggalLahir,
-		"alamat":         u.Alamat,
-		"faskesTingkat1": u.FaskesTingkat1,
-		"kelasPerawatan": u.KelasPerawatan,
-	}
+    result := map[string]interface{}{
+        "nik":            u.NIK,
+        "namaLengkap":    u.NamaLengkap,
+        "noTelp":         u.NoTelp,
+        "createdAt":      u.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+    }
+
+    if u.Email != nil {
+        result["email"] = *u.Email
+    }
+
+    if u.NoKartuJKN != nil {
+        result["noKartuJKN"] = *u.NoKartuJKN
+    }
+
+    if u.JenisKelamin != nil {
+        result["jenisKelamin"] = *u.JenisKelamin
+    }
+
+    if u.TanggalLahir != nil {
+        result["tanggalLahir"] = u.TanggalLahir.Format("2006-01-02")
+    }
+
+    if u.Alamat != nil {
+        result["alamat"] = *u.Alamat
+    }
+
+    if u.FaskesTingkat1 != nil {
+        result["faskesTingkat1"] = *u.FaskesTingkat1
+    }
+
+    if u.KelasPerawatan != nil {
+        result["kelasPerawatan"] = *u.KelasPerawatan
+    }
+
+    return result
 }
