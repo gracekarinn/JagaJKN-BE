@@ -21,10 +21,14 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, blockchainSvc *bService.Blockc
     r.Use(gin.Recovery())
     r.Use(gin.Logger())
 
-    corsConfig := cors.DefaultConfig()
-    corsConfig.AllowOrigins = []string{"*"}
-    corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
-    corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
+    corsConfig := cors.Config{
+        AllowOrigins:     []string{"http://localhost:3000"},
+        AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+        AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+        ExposeHeaders:    []string{"Content-Length"},
+        AllowCredentials: true,
+        MaxAge:           12 * 3600, 
+    }
     r.Use(cors.New(corsConfig))
 
     r.Use(func(c *gin.Context) {
