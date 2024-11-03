@@ -178,23 +178,7 @@ func calculateUserHash(user *models.User) string {
     return hashStr
 }
 
-func (h *AuthHandler) GetProfile() gin.HandlerFunc {
-    return func(c *gin.Context) {
 
-        claims, _ := c.Get("claims")
-        userClaims := claims.(jwt.MapClaims)
-        nik := userClaims["nik"].(string)
-
-        var user models.User
-        if err := h.db.Where("nik = ?", nik).First(&user).Error; err != nil {
-            log.Printf("User not found: %v", err)
-            c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-            return
-        }
-
-        c.JSON(http.StatusOK, gin.H{"user": user.ToJSON()})
-    }
-}
 
 func (h *AuthHandler) CheckUserRegistration() gin.HandlerFunc {
     return func(c *gin.Context) {
@@ -264,6 +248,25 @@ func (h *AuthHandler) CheckUserRegistration() gin.HandlerFunc {
             "hash_verified": verificationStatus,
             "calculated_hash": userHash,
         })
+    }
+}
+
+func (h *AuthHandler) GetProfile() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        nik, exists := c.Get("user_nik")
+        if !exists {
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+            return
+        }
+
+        var user models.User
+        if err := h.db.Where("nik = ?", nik).First(&user).Error; err != nil {
+            log.Printf("User not found: %v", err)
+            c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+            return
+        }
+
+        c.JSON(http.StatusOK, gin.H{"user": user.ToJSON()})
     }
 }
 
