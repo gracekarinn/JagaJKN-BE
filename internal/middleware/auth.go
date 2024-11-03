@@ -33,7 +33,7 @@ func UserAuthMiddleware(jwtSecret string) gin.HandlerFunc {
             return
         }
 
-        log.Printf("Token: %s", tokenString) // Log the token for debugging
+        log.Printf("Token: %s", tokenString) 
 
         token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
             if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
