@@ -159,7 +159,6 @@ func (h *AuthHandler) Login() gin.HandlerFunc {
     }
 }
 
-
 func calculateUserHash(user *models.User) string {
     data := fmt.Sprintf("%s:%s:%s", 
         user.NIK,
@@ -177,6 +176,24 @@ func calculateUserHash(user *models.User) string {
     
     log.Printf("Generated hash: %s", hashStr)
     return hashStr
+}
+
+func (h *AuthHandler) GetProfile() gin.HandlerFunc {
+    return func(c *gin.Context) {
+
+        claims, _ := c.Get("claims")
+        userClaims := claims.(jwt.MapClaims)
+        nik := userClaims["nik"].(string)
+
+        var user models.User
+        if err := h.db.Where("nik = ?", nik).First(&user).Error; err != nil {
+            log.Printf("User not found: %v", err)
+            c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+            return
+        }
+
+        c.JSON(http.StatusOK, gin.H{"user": user.ToJSON()})
+    }
 }
 
 func (h *AuthHandler) CheckUserRegistration() gin.HandlerFunc {
