@@ -63,35 +63,35 @@ func CreateEnumTypes(db *gorm.DB) error {
     return nil
 }
 
-func dropExistingObjects(db *gorm.DB) error {
-    // Tables to drop
-    tables := []string{
-        "rekam_medis_transfers",
-        "resep_obat",
-        "record_kesehatans",
-        "faskes",
-        "users",
-        "admins",
-    }
+// func dropExistingObjects(db *gorm.DB) error {
+//     // Tables to drop
+//     tables := []string{
+//         "rekam_medis_transfers",
+//         "resep_obat",
+//         "record_kesehatans",
+//         "faskes",
+//         "users",
+//         "admins",
+//     }
 
-    // Drop tables
-    for _, table := range tables {
-        if err := db.Exec("DROP TABLE IF EXISTS " + table + " CASCADE").Error; err != nil {
-            return fmt.Errorf("error dropping table %s: %v", table, err)
-        }
-        infoLog.Printf("Dropped table: %s", table)
-    }
+//     // Drop tables
+//     for _, table := range tables {
+//         if err := db.Exec("DROP TABLE IF EXISTS " + table + " CASCADE").Error; err != nil {
+//             return fmt.Errorf("error dropping table %s: %v", table, err)
+//         }
+//         infoLog.Printf("Dropped table: %s", table)
+//     }
 
-    // Drop enum types
-    for _, enum := range enums {
-        if err := db.Exec("DROP TYPE IF EXISTS " + enum.name + " CASCADE").Error; err != nil {
-            return fmt.Errorf("error dropping enum %s: %v", enum.name, err)
-        }
-        infoLog.Printf("Dropped enum: %s", enum.name)
-    }
+//     // Drop enum types
+//     for _, enum := range enums {
+//         if err := db.Exec("DROP TYPE IF EXISTS " + enum.name + " CASCADE").Error; err != nil {
+//             return fmt.Errorf("error dropping enum %s: %v", enum.name, err)
+//         }
+//         infoLog.Printf("Dropped enum: %s", enum.name)
+//     }
 
-    return nil
-}
+//     return nil
+// }
 
 func createDefaultAdmin(db *gorm.DB) error {
     var admin models.Admin
@@ -120,10 +120,10 @@ func createDefaultAdmin(db *gorm.DB) error {
 func RunMigrations(db *gorm.DB) error {
     infoLog.Println("Starting database migrations...")
 
-    // Drop existing objects
-    if err := dropExistingObjects(db); err != nil {
-        return fmt.Errorf("error dropping existing objects: %v", err)
-    }
+    // // Drop existing objects
+    // if err := dropExistingObjects(db); err != nil {
+    //     return fmt.Errorf("error dropping existing objects: %v", err)
+    // }
 
     // Create enum types
     if err := CreateEnumTypes(db); err != nil {
