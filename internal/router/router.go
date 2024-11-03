@@ -22,7 +22,7 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, blockchainSvc *bService.Blockc
     r.Use(gin.Logger())
 
     corsConfig := cors.Config{
-        AllowOrigins:     []string{"http://localhost:3000", "jagajkn.vercel.app"},
+        AllowOrigins:     []string{"http://localhost:3000", "https://jagajkn.vercel.app"},
         AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
         AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
         ExposeHeaders:    []string{"Content-Length"},
